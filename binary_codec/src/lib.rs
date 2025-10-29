@@ -1,21 +1,17 @@
-use std::{array::TryFromSliceError, mem::MaybeUninit};
+pub mod primitive;
+
+use std::mem::MaybeUninit;
 
 #[cfg(feature = "derive")]
 pub use binary_codec_derive::{Decode, Encode, Measure};
 
 pub enum DecodeError {
-    SliceError(TryFromSliceError),
+    EOF,
     InvalidDiscriminant,
 }
 
-impl From<TryFromSliceError> for DecodeError {
-    fn from(err: TryFromSliceError) -> Self {
-        DecodeError::SliceError(err)
-    }
-}
-
 pub enum EncodeError {
-    SliceError,
+    BufferTooSmall,
 }
 
 pub trait Decode: Sized {
@@ -30,41 +26,33 @@ pub trait Measure {
     fn measure(&self) -> usize;
 }
 
-macro_rules! impl_prim {
-    ($($t:tt),+ $(,)?) => {
-        $(
-            impl Decode for $t {
-                fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
-                    let n = std::mem::size_of::<$t>();
-                    let bytes = &encoded[*offset..*offset + n];
-                    *offset += n;
-                    Ok(<$t>::from_le_bytes(bytes.try_into()?))
-                }
-            }
-
-            impl Encode for $t {
-                fn encode(&self, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError> {
-                    let bytes = self.to_le_bytes();
-                    if *offset + bytes.len() > encoded.len() {
-                        return Err(EncodeError::SliceError);
-                    }
-                    encoded[*offset..*offset + bytes.len()].copy_from_slice(&bytes);
-                    *offset += bytes.len();
-                    Ok(())
-                }
-            }
-
-            impl Measure for $t {
-                fn measure(&self) -> usize {
-                    std::mem::size_of::<$t>()
-                }
-            }
-        )*
-    };
+impl Decode for u8 {
+    fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
+        if *offset >= encoded.len() {
+            return Err(DecodeError::EOF);
+        }
+        let value = encoded[*offset];
+        *offset += 1;
+        Ok(value)
+    }
 }
 
-impl_prim!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, f32, f64);
+impl Encode for u8 {
+    fn encode(&self, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError> {
+        if *offset >= encoded.len() {
+            return Err(EncodeError::BufferTooSmall);
+        }
+        encoded[*offset] = *self;
+        *offset += 1;
+        Ok(())
+    }
+}
 
+impl Measure for u8 {
+    fn measure(&self) -> usize {
+        1
+    }
+}
 
 macro_rules! impl_smart_ptr {
     ($($t:tt),+ $(,)?) => {

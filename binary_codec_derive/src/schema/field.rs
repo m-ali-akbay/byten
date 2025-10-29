@@ -2,6 +2,8 @@ use proc_macro2::Span;
 use syn::{Fields, FieldsNamed, Ident};
 use quote::{ToTokens, quote};
 
+use crate::{interpret_codec_schema, parse_binary_codec_attribute};
+
 use super::{BinarySchema, DecodeContext, EncodeContext, MeasureContext, interpret_type_schema};
 
 pub trait FieldsSchema: BinarySchema {
@@ -30,7 +32,10 @@ impl NamedFieldsSchema {
     fn interpret(fields: &FieldsNamed) -> NamedFieldsSchema {
         let fields = fields.named.iter().map(|field| {
             let ident = field.ident.clone().expect("Named field must have an identifier");
-            let ty = interpret_type_schema(&field.ty);
+            let ty = match parse_binary_codec_attribute(&field.attrs) {
+                Some(codec) => interpret_codec_schema(codec),
+                None => interpret_type_schema(&field.ty),
+            };
             (ident, ty)
         }).collect();
         NamedFieldsSchema {
@@ -105,7 +110,10 @@ impl UnnamedFieldsSchema {
     fn interpret(fields: &syn::FieldsUnnamed) -> UnnamedFieldsSchema {
         let fields = fields.unnamed.iter().map(|field| {
             if field.ident.is_some() { panic!("Unnamed field must not have an identifier"); }
-            interpret_type_schema(&field.ty)
+            match parse_binary_codec_attribute(&field.attrs) {
+                Some(codec) => interpret_codec_schema(codec),
+                None => interpret_type_schema(&field.ty),
+            }
         }).collect();
         UnnamedFieldsSchema { fields }
     }

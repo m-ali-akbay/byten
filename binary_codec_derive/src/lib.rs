@@ -5,7 +5,7 @@ use quote::quote;
 mod schema;
 use schema::*;
 
-#[proc_macro_derive(Decode)]
+#[proc_macro_derive(Decode, attributes(binary_codec))]
 pub fn derive_decode(input: TokenStream) -> TokenStream {
     let input: DeriveInput = syn::parse(input).unwrap();
     let ident = &input.ident;
@@ -30,7 +30,7 @@ pub fn derive_decode(input: TokenStream) -> TokenStream {
     }.into()
 }
 
-#[proc_macro_derive(Encode)]
+#[proc_macro_derive(Encode, attributes(binary_codec))]
 pub fn derive_encode(input: TokenStream) -> TokenStream {
     let input: DeriveInput = syn::parse(input).unwrap();
     let ident = &input.ident;
@@ -58,7 +58,7 @@ pub fn derive_encode(input: TokenStream) -> TokenStream {
     }.into()
 }
 
-#[proc_macro_derive(Measure)]
+#[proc_macro_derive(Measure, attributes(binary_codec))]
 pub fn derive_measure(input: TokenStream) -> TokenStream {
     let input: DeriveInput = syn::parse(input).unwrap();
     let ident = &input.ident;

@@ -5,9 +5,13 @@ use super::{BinarySchema, DecodeContext, EncodeContext, MeasureContext};
 
 pub fn interpret_type_schema(ty: &Type) -> Box<dyn BinarySchema> {
     match ty {
-        Type::Path(ty) => Box::new(TypePathSchema::from(ty)),
+        Type::Path(ty) => interpret_type_path_schema(ty),
         _ => panic!("Unsupported type"),
     }
+}
+
+pub fn interpret_type_path_schema(ty: &TypePath) -> Box<dyn BinarySchema> {
+    Box::new(TypePathSchema::from(ty))
 }
 
 struct TypePathSchema {
