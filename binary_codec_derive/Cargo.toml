@@ -1,0 +1,15 @@
+[package]
+name = "binary_codec_derive"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.103"
+quote = "1.0.41"
+syn = "2.0.108"
+
+[dev-dependencies]
+binary_codec = { path = "../binary_codec" }
