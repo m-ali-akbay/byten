@@ -13,5 +13,5 @@ keywords = ["binary", "codec", "serialization", "encoding", "decoding"]
 categories = ["encoding", "parsing"]
 
 [workspace.dependencies]
-byten = { path = "byten", default-features = false }
-byten_derive = { path = "byten_derive" }
+byten = { version = "0.0.1-dev000", path = "byten", default-features = false }
+byten_derive = { version = "0.0.1-dev000", path = "byten_derive" }
