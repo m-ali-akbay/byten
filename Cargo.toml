@@ -1,2 +1,2 @@
 [workspace]
-members = ["binary_codec", "binary_codec_derive"]
+members = ["byten", "byten_derive"]

@@ -1,55 +1,73 @@
 macro_rules! impl_prim {
-    ($($t:tt),+ $(,)?) => {
-        $(
-            pub mod $t {
-                pub mod le {
-                    pub fn decode(encoded: &[u8], offset: &mut usize) -> Result<$t, crate::DecodeError> {
-                        let n = std::mem::size_of::<$t>();
-                        let bytes = &encoded[*offset..*offset + n];
-                        *offset += n;
-                        Ok(<$t>::from_le_bytes(bytes.try_into().map_err(|_| crate::DecodeError::EOF)?))
-                    }
+    ($ty:tt, $wrapper:ident, $from_bytes:ident, $to_bytes:ident) => {
+        pub struct $wrapper(pub $ty);
 
-                    pub fn encode(decoded: &$t, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
-                        let bytes = decoded.to_le_bytes();
-                        if *offset + bytes.len() > encoded.len() {
-                            return Err(crate::EncodeError::BufferTooSmall);
-                        }
-                        encoded[*offset..*offset + bytes.len()].copy_from_slice(&bytes);
-                        *offset += bytes.len();
-                        Ok(())
-                    }
-
-                    pub const fn measure(_decoded: &$t) -> usize {
-                        $t::BITS as usize / 8
-                    }
+        impl crate::Decode for $wrapper {
+            fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, crate::DecodeError> {
+                const SIZE: usize = $ty::BITS as usize / 8;
+                if *offset + SIZE > encoded.len() {
+                    return Err(crate::DecodeError::EOF);
                 }
-
-                pub mod be {
-                    pub fn decode(encoded: &[u8], offset: &mut usize) -> Result<$t, crate::DecodeError> {
-                        let n = std::mem::size_of::<$t>();
-                        let bytes = &encoded[*offset..*offset + n];
-                        *offset += n;
-                        Ok(<$t>::from_be_bytes(bytes.try_into().map_err(|_| crate::DecodeError::EOF)?))
-                    }
-
-                    pub fn encode(decoded: &$t, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
-                        let bytes = decoded.to_be_bytes();
-                        if *offset + bytes.len() > encoded.len() {
-                            return Err(crate::EncodeError::BufferTooSmall);
-                        }
-                        encoded[*offset..*offset + bytes.len()].copy_from_slice(&bytes);
-                        *offset += bytes.len();
-                        Ok(())
-                    }
-
-                    pub const fn measure(_decoded: &$t) -> usize {
-                        $t::BITS as usize / 8
-                    }
-                }
+                let bytes: [u8; SIZE] = encoded[*offset..*offset + SIZE].try_into().unwrap();
+                *offset += SIZE;
+                Ok(<$ty>::$from_bytes(bytes).into())
             }
-        )*
+        }
+
+        impl crate::Encode for $wrapper {
+            fn encode(&self, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
+                const SIZE: usize = $ty::BITS as usize / 8;
+                if *offset + SIZE > encoded.len() {
+                    return Err(crate::EncodeError::BufferTooSmall);
+                }
+                let bytes = self.0.$to_bytes();
+                encoded[*offset..*offset + SIZE].copy_from_slice(&bytes);
+                *offset += SIZE;
+                Ok(())
+            }
+        }
+
+        impl crate::Measure for $wrapper {
+            fn measure(&self) -> usize {
+                $ty::BITS as usize / 8
+            }
+        }
+
+        impl From<$ty> for $wrapper {
+            fn from(value: $ty) -> Self {
+                $wrapper(value)
+            }
+        }
+
+        impl From<$wrapper> for $ty {
+            fn from(value: $wrapper) -> Self {
+                value.0
+            }
+        }
+
+        impl From<&$ty> for $wrapper {
+            fn from(value: &$ty) -> Self {
+                $wrapper(*value)
+            }
+        }
     };
 }
 
-impl_prim!(u16, u32, u64, u128, i8, i16, i32, i64, i128);
+impl_prim!(u16, U16BE, from_be_bytes, to_be_bytes);
+impl_prim!(u32, U32BE, from_be_bytes, to_be_bytes);
+impl_prim!(u64, U64BE, from_be_bytes, to_be_bytes);
+impl_prim!(u128, U128BE, from_be_bytes, to_be_bytes);
+impl_prim!(i16, I16BE, from_be_bytes, to_be_bytes);
+impl_prim!(i32, I32BE, from_be_bytes, to_be_bytes);
+impl_prim!(i64, I64BE, from_be_bytes, to_be_bytes);
+impl_prim!(i128, I128BE, from_be_bytes, to_be_bytes);
+
+impl_prim!(u16, U16LE, from_be_bytes, to_be_bytes);
+impl_prim!(u32, U32LE, from_be_bytes, to_be_bytes);
+impl_prim!(u64, U64LE, from_be_bytes, to_be_bytes);
+impl_prim!(u128, U128LE, from_be_bytes, to_be_bytes);
+impl_prim!(i16, I16LE, from_be_bytes, to_be_bytes);
+impl_prim!(i32, I32LE, from_be_bytes, to_be_bytes);
+impl_prim!(i64, I64LE, from_be_bytes, to_be_bytes);
+impl_prim!(i128, I128LE, from_be_bytes, to_be_bytes);
+

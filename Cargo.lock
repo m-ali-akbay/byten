@@ -3,17 +3,17 @@
 version = 4
 
 [[package]]
-name = "binary_codec"
+name = "byten"
 version = "0.1.0"
 dependencies = [
- "binary_codec_derive",
+ "byten_derive",
 ]
 
 [[package]]
-name = "binary_codec_derive"
+name = "byten_derive"
 version = "0.1.0"
 dependencies = [
- "binary_codec",
+ "byten",
  "proc-macro2",
  "quote",
  "syn",

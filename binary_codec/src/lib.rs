@@ -1,9 +1,10 @@
 pub mod primitive;
+pub mod array;
 
 use std::mem::MaybeUninit;
 
 #[cfg(feature = "derive")]
-pub use binary_codec_derive::{Decode, Encode, Measure};
+pub use byten_derive::{Decode, Encode, Measure};
 
 pub enum DecodeError {
     EOF,

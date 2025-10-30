@@ -1,11 +1,11 @@
 [package]
-name = "binary_codec"
+name = "byten"
 version = "0.1.0"
 edition = "2024"
 
 [features]
 default = ["derive"]
-derive = ["dep:binary_codec_derive"]
+derive = ["dep:byten_derive"]
 
 [dependencies]
-binary_codec_derive = { path = "../binary_codec_derive", optional = true }
+byten_derive = { path = "../byten_derive", optional = true }
