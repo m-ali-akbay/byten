@@ -115,6 +115,33 @@ impl Measure for u8 {
     fn measure(&self) -> usize { 1 }
 }
 
+impl<const N: usize> Decode for [u8; N] {
+    fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
+        if *offset + N > encoded.len() {
+            return Err(DecodeError::EOF);
+        }
+        let mut array = [0u8; N];
+        array.copy_from_slice(&encoded[*offset..*offset + N]);
+        *offset += N;
+        Ok(array)
+    }
+}
+
+impl<const N: usize> Encode for [u8; N] {
+    fn encode(&self, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError> {
+        if *offset + N > encoded.len() {
+            return Err(EncodeError::BufferTooSmall);
+        }
+        encoded[*offset..*offset + N].copy_from_slice(self);
+        *offset += N;
+        Ok(())
+    }
+}
+
+impl<const N: usize> Measure for [u8; N] {
+    fn measure(&self) -> usize { N }
+}
+
 macro_rules! impl_smart_ptr {
     ($($t:tt),+ $(,)?) => {
         $(
