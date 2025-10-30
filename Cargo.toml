@@ -1,3 +1,17 @@
 [workspace]
 members = ["byten", "byten_derive"]
 resolver = "3"
+
+[workspace.package]
+version = "0.0.1-dev000"
+edition = "2024"
+authors = ["Ali Akbay <maakbay@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/m-ali-akbay/byten"
+homepage = "https://github.com/m-ali-akbay/byten"
+keywords = ["binary", "codec", "serialization", "encoding", "decoding"]
+categories = ["encoding", "parsing"]
+
+[workspace.dependencies]
+byten = { path = "byten", default-features = false }
+byten_derive = { path = "byten_derive" }

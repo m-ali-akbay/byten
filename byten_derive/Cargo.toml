@@ -1,7 +1,13 @@
 [package]
 name = "byten_derive"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Procedural macros for deriving binary codec traits (internal use by byten)"
+documentation = "https://docs.rs/byten_derive"
 
 [lib]
 proc-macro = true
@@ -12,4 +18,4 @@ quote = "1.0.41"
 syn = "2.0.108"
 
 [dev-dependencies]
-byten = { path = "../byten" }
+byten = { workspace = true, default-features = false }
