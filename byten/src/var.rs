@@ -241,37 +241,46 @@ mod test {
     }
 }
 
-pub struct USizeBE;
+macro_rules! define_u_be {
+    ($name:ident, $ty:ty) => {
+        pub struct $name;
 
-impl Default for USizeBE {
-    fn default() -> Self {
-        USizeBE
-    }
+        impl Default for $name {
+            fn default() -> Self {
+                $name
+            }
+        }
+
+        impl crate::Decoder for $name {
+            type Decoded = $ty;
+            fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<$ty, crate::DecodeError> {
+                let u64_value = U64BE.decode(encoded, offset)?;
+                let val: $ty = u64_value.try_into().map_err(|_| crate::DecodeError::ConversionFailure)?;
+                Ok(val)
+            }
+        }
+
+        impl crate::Encoder for $name {
+            type Decoded = $ty;
+            fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
+                let u64_value = *decoded as u64;
+                U64BE.encode(&u64_value, encoded, offset)
+            }
+        }
+
+        impl crate::Measurer for $name {
+            type Decoded = $ty;
+            fn measure(&self, decoded: &Self::Decoded) -> usize {
+                let u64_value = *decoded as u64;
+                U64BE.measure(&u64_value)
+            }
+        }
+    };
 }
 
-impl crate::Decoder for USizeBE {
-    type Decoded = usize;
-    fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<usize, crate::DecodeError> {
-        let u64_value = U64BE.decode(encoded, offset)?;
-        Ok(u64_value.try_into().map_err(|_| crate::DecodeError::ConversionFailure)?)
-    }
-}
-
-impl crate::Encoder for USizeBE {
-    type Decoded = usize;
-    fn encode(&self, &decoded: &usize, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
-        let u64_value = decoded as u64;
-        U64BE.encode(&u64_value, encoded, offset)
-    }
-}
-
-impl crate::Measurer for USizeBE {
-    type Decoded = usize;
-    fn measure(&self, &decoded: &usize) -> usize {
-        let u64_value = decoded as u64;
-        U64BE.measure(&u64_value)
-    }
-}
+define_u_be!(USizeBE, usize);
+define_u_be!(U32BE, u32);
+define_u_be!(U16BE, u16);
 
 pub struct Option<Item> {
     pub item: Item,
