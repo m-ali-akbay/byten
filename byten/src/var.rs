@@ -83,7 +83,7 @@ impl Default for U64BE {
 
 impl U64BE {
     fn into_septets_le(num: u64) -> [u8; 10] {
-        let mut bits_from_lsb = (0..64).into_iter().map(move |bit| num & (1 << bit) != 0);
+        let mut bits_from_lsb = (0..64).map(move |bit| num & (1 << bit) != 0);
 
         let septets_le = iter::from_fn(|| {
             let mut septet = 0u8;
@@ -126,6 +126,7 @@ impl U64BE {
         value
     }
 
+    #[allow(dead_code)]
     fn from_septets_be(septets_be: [u8; 10]) -> u64 {
         let mut septets_le = septets_be;
         septets_le.reverse();

@@ -59,16 +59,15 @@ impl BinarySchema for NamedFieldsSchema {
         let type_path = &ctx.wrapper;
         let idents = self.fields.iter().map(|(ident, _)| ident).collect::<Vec<_>>();
         let variables = idents.iter()
-            .map(|ident| Ident::new(format!("variant_{}", ident.to_string()).as_str(), ident.span()))
+            .map(|ident| Ident::new(format!("variant_{}", ident).as_str(), ident.span()))
             .collect::<Vec<_>>();
         let encodes = self.fields.iter().zip(variables.iter()).map(|((_, schema), variable)| {
-            let encode = schema.encode(&EncodeContext {
+            schema.encode(&EncodeContext {
                 wrapper: quote! {},
                 decoded: variable.into_token_stream(),
                 encoded: ctx.encoded.clone(),
                 offset: ctx.offset.clone(),
-            });
-            encode
+            })
         });
         quote! { 
             let #type_path { #(#idents: #variables,)* } = #wrapper else { unreachable!() };
@@ -81,14 +80,13 @@ impl BinarySchema for NamedFieldsSchema {
         let type_path = &ctx.wrapper;
         let idents = self.fields.iter().map(|(ident, _)| ident).collect::<Vec<_>>();
         let variables = idents.iter()
-            .map(|ident| Ident::new(format!("variant_{}", ident.to_string()).as_str(), ident.span()))
+            .map(|ident| Ident::new(format!("variant_{}", ident).as_str(), ident.span()))
             .collect::<Vec<_>>();
         let measures = self.fields.iter().zip(variables.iter()).map(|((_, schema), variable)| {
-            let measure = schema.measure(&MeasureContext {
+            schema.measure(&MeasureContext {
                 wrapper: quote! {},
                 decoded: variable.into_token_stream(),
-            });
-            measure
+            })
         });
         quote! { {
             let #type_path { #(#idents: #variables,)* } = #wrapper else { unreachable!() };
@@ -146,13 +144,12 @@ impl BinarySchema for UnnamedFieldsSchema {
             .map(|(index, _)| Ident::new(format!("variant_{}", index).as_str(), Span::call_site()))
             .collect::<Vec<_>>();
         let encodes = self.fields.iter().zip(variables.iter()).map(|(schema, variable)| {
-            let encode = schema.encode(&EncodeContext {
+            schema.encode(&EncodeContext {
                 wrapper: quote! {},
                 decoded: variable.into_token_stream(),
                 encoded: ctx.encoded.clone(),
                 offset: ctx.offset.clone(),
-            });
-            encode
+            })
         });
         quote! { 
             let #wrapper ( #(#variables),* ) = #decoded else { unreachable!() };
@@ -168,11 +165,10 @@ impl BinarySchema for UnnamedFieldsSchema {
             .map(|(index, _)| Ident::new(format!("variant_{}", index).as_str(), Span::call_site()))
             .collect::<Vec<_>>();
         let measures = self.fields.iter().zip(variables.iter()).map(|(schema, variable)| {
-            let measure = schema.measure(&MeasureContext {
+            schema.measure(&MeasureContext {
                 wrapper: quote! {},
                 decoded: variable.into_token_stream(),
-            });
-            measure
+            })
         });
         quote! { {
             let #wrapper ( #(#variables),* ) = #decoded else { unreachable!() };
