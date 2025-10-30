@@ -4,9 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
-default = ["derive"]
+default = ["derive", "anyhow"]
 derive = ["dep:byten_derive"]
+anyhow = ["dep:anyhow"]
 
 [dependencies]
 byten_derive = { path = "../byten_derive", optional = true }
 heapless = "0.9.1"
+anyhow = { version = "1", optional = true }
+thiserror = { version = "2" }

@@ -6,21 +6,47 @@ pub mod var;
 #[cfg(feature = "derive")]
 pub use byten_derive::{Decode, Encode, Measure, FixedMeasure};
 
-#[derive(Debug)]
+use thiserror::Error;
+
+#[derive(Error, Debug)]
 pub enum DecodeError {
+    #[error("End of file reached")]
     EOF,
+
+    #[error("Invalid discriminant")]
     InvalidDiscriminant,
+
+    #[error("Invalid usize")]
     InvalidUSize,
+
+    #[error("Data conversion failure")]
     ConversionFailure,
+
+    #[error("Invalid data")]
     InvalidData,
+
+    #[error("Codec failure")]
     CodecFailure,
+    
+    #[cfg(feature = "anyhow")]
+    #[error("Anyhow: {0}")]
+    Anyhow(#[from] anyhow::Error),
 }
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum EncodeError {
+    #[error("Buffer too small")]
     BufferTooSmall,
+
+    #[error("Invalid usize")]
     InvalidUSize,
+
+    #[error("Data conversion failure")]
     CodecFailure,
+
+    #[cfg(feature = "anyhow")]
+    #[error("Anyhow: {0}")]
+    Anyhow(#[from] anyhow::Error),
 }
 
 // codec traits
