@@ -22,7 +22,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-byten = "0.0.1-dev000"
+byten = "0.0"
 ```
 
 ## Basic Usage
