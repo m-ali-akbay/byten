@@ -55,11 +55,11 @@ impl_prim!(i64, I64BE, from_be_bytes, to_be_bytes);
 impl_prim!(i128, I128BE, from_be_bytes, to_be_bytes);
 
 // LE
-impl_prim!(u16, U16LE, from_be_bytes, to_be_bytes);
-impl_prim!(u32, U32LE, from_be_bytes, to_be_bytes);
-impl_prim!(u64, U64LE, from_be_bytes, to_be_bytes);
-impl_prim!(u128, U128LE, from_be_bytes, to_be_bytes);
-impl_prim!(i16, I16LE, from_be_bytes, to_be_bytes);
-impl_prim!(i32, I32LE, from_be_bytes, to_be_bytes);
-impl_prim!(i64, I64LE, from_be_bytes, to_be_bytes);
-impl_prim!(i128, I128LE, from_be_bytes, to_be_bytes);
+impl_prim!(u16, U16LE, from_le_bytes, to_le_bytes);
+impl_prim!(u32, U32LE, from_le_bytes, to_le_bytes);
+impl_prim!(u64, U64LE, from_le_bytes, to_le_bytes);
+impl_prim!(u128, U128LE, from_le_bytes, to_le_bytes);
+impl_prim!(i16, I16LE, from_le_bytes, to_le_bytes);
+impl_prim!(i32, I32LE, from_le_bytes, to_le_bytes);
+impl_prim!(i64, I64LE, from_le_bytes, to_le_bytes);
+impl_prim!(i128, I128LE, from_le_bytes, to_le_bytes);

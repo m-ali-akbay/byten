@@ -87,17 +87,16 @@ impl U64BE {
 
         let septets_le = iter::from_fn(|| {
             let mut septet = 0u8;
-            for bit_index in (0..7).rev() {
-                if let Some(bit) = bits_from_lsb.next() {
-                    if bit {
-                        septet |= 1 << bit_index;
-                    }
-                } else {
-                    return None;
+            for bit_index in 0..7 {
+                let Some(bit) = bits_from_lsb.next() else {
+                    break;
+                };
+                if bit {
+                    septet |= 1 << bit_index;
                 }
             }
             Some(septet)
-        });
+        }).take(10);
 
         let mut array = [0u8; 10];
         for (index, septet) in septets_le.enumerate() {
@@ -116,7 +115,7 @@ impl U64BE {
     fn from_septets_le(septets_le: [u8; 10]) -> u64 {
         let septets_le = septets_le.into_iter();
         let bits_from_lsb = septets_le.flat_map(|septet| {
-            (0..7).rev().map(move |bit_index| (septet & (1 << bit_index)) != 0)
+            (0..7).map(move |bit_index| (septet & (1 << bit_index)) != 0)
         }).take(64);
         let mut value = 0u64;
         for (bit_index, bit) in bits_from_lsb.enumerate() {
@@ -126,14 +125,20 @@ impl U64BE {
         }
         value
     }
+
+    fn from_septets_be(septets_be: [u8; 10]) -> u64 {
+        let mut septets_le = septets_be;
+        septets_le.reverse();
+        Self::from_septets_le(septets_le)
+    }
 }
 
 impl crate::Encoder for U64BE {
     type Decoded = u64;
     fn encode(&self, &decoded: &u64, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
         let septets_be = Self::into_septets_be(decoded);
-        let skip = septets_be.iter().rev().take_while(|&&b| b == 0).count();
-        let trunc_septets_be = &septets_be[0..septets_be.len() - skip];
+        let skip = septets_be.iter().take_while(|&&b| b == 0).count();
+        let trunc_septets_be = &septets_be[skip..];
 
         if trunc_septets_be.is_empty() {
             return 0u8.encode(encoded, offset);
@@ -179,9 +184,59 @@ impl crate::Measurer for U64BE {
     type Decoded = u64;
     fn measure(&self, &decoded: &u64) -> usize {
         let septets_be = Self::into_septets_be(decoded);
-        let skip = septets_be.iter().rev().take_while(|&&b| b == 0).count();
+        let skip = septets_be.iter().take_while(|&&b| b == 0).count();
         let take = septets_be.len() - skip;
         take.max(1)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::prelude::EncoderToVec;
+
+    use super::*;
+
+    #[test]
+    fn test_septets_le() {
+        let fixtures = [
+            (0u64,      [0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000]),
+            (1u64,      [0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000001]),
+            (127u64,    [0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b1111111]),
+            (128u64,    [0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000001, 0b0000000]),
+            (255u64,    [0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000001, 0b1111111]),
+            (16383u64,  [0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b1111111, 0b1111111]),
+            (16384u64,  [0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000001, 0b0000000, 0b0000000]),
+            (u64::MAX,  [0b0000001, 0b1111111, 0b1111111, 0b1111111, 0b1111111, 0b1111111, 0b1111111, 0b1111111, 0b1111111, 0b1111111]),
+        ];
+        for (num, septets_be_fixture) in fixtures.iter() {
+            let septets_be = U64BE::into_septets_be(*num);
+            assert_eq!(&septets_be, septets_be_fixture, "BE septets failed for {}", num);
+
+            let reconstructed_num = U64BE::from_septets_be(*septets_be_fixture);
+            assert_eq!(&reconstructed_num, num, "BE reconstruction failed for {:?}", septets_be_fixture);
+        }
+    }
+    
+    #[test]
+    fn test_u64be() {
+        let fixtures = [
+            (0u64,      vec![0b00000000]),
+            (1u64,      vec![0b00000001]),
+            (127u64,    vec![0b01111111]),
+            (128u64,    vec![0b10000001, 0b00000000]),
+            (255u64,    vec![0b10000001, 0b01111111]),
+            (16383u64,  vec![0b11111111, 0b01111111]),
+            (16384u64,  vec![0b10000001, 0b10000000, 0b00000000]),
+            (u64::MAX,  vec![0b10000001, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b01111111]),
+        ];
+
+        for (num, encoded_fixture) in fixtures.iter() {
+            let encoded = U64BE.encode_to_vec(num).expect("Encoding failed");
+            assert_eq!(&encoded, encoded_fixture, "Encoding failed for {}", num);
+
+            let decoded = U64BE.decode(&encoded, &mut 0).expect("Decoding failed");
+            assert_eq!(&decoded, num, "Decoding failed for {:?}", encoded);
+        }
     }
 }
 

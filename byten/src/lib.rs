@@ -6,6 +6,7 @@ pub mod var;
 #[cfg(feature = "derive")]
 pub use byten_derive::{Decode, Encode, Measure};
 
+#[derive(Debug)]
 pub enum DecodeError {
     EOF,
     InvalidDiscriminant,
@@ -15,6 +16,7 @@ pub enum DecodeError {
     CodecFailure,
 }
 
+#[derive(Debug)]
 pub enum EncodeError {
     BufferTooSmall,
     InvalidUSize,
