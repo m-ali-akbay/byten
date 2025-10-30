@@ -1,8 +1,8 @@
-use std::{iter, vec::Vec as StdVec};
+use std::{iter, vec::Vec as StdVec, option::Option as StdOption};
 
-use crate::Decoder;
 use crate::Encode as _;
 use crate::Decode as _;
+use crate::Measure as _;
 
 pub struct Vec<Length, Item> {
     pub length: Length,
@@ -22,7 +22,7 @@ where
     }
 }
 
-impl<Length, Item> Decoder for Vec<Length, Item>
+impl<Length, Item> crate::Decoder for Vec<Length, Item>
 where
     Length: crate::Decoder<Decoded = usize>,
     Item: crate::Decoder,
@@ -193,6 +193,7 @@ impl crate::Measurer for U64BE {
 #[cfg(test)]
 mod test {
     use crate::prelude::EncoderToVec;
+    use crate::Decoder as _;
 
     use super::*;
 
@@ -271,3 +272,73 @@ impl crate::Measurer for USizeBE {
         U64BE.measure(&u64_value)
     }
 }
+
+pub struct Option<Item> {
+    pub item: Item,
+}
+
+impl<Item> Default for Option<Item>
+where
+    Item: Default,
+{
+    fn default() -> Self {
+        Option {
+            item: Item::default(),
+        }
+    }
+}
+
+impl<Item> crate::Decoder for Option<Item>
+where
+    Item: crate::Decoder,
+{
+    type Decoded = StdOption<Item::Decoded>;
+
+    fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
+        let flag = bool::decode(encoded, offset)?;
+        if flag {
+            Ok(StdOption::None)
+        } else {
+            let item = self.item.decode(encoded, offset)?;
+            Ok(StdOption::Some(item))
+        }
+    }
+}
+
+impl<Item> crate::Encoder for Option<Item>
+where
+    Item: crate::Encoder,
+{
+    type Decoded = StdOption<Item::Decoded>;
+
+    fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
+        match decoded {
+            StdOption::None => {
+                true.encode(encoded, offset)?;
+                Ok(())
+            }
+            StdOption::Some(item) => {
+                false.encode(encoded, offset)?;
+                self.item.encode(item, encoded, offset)
+            }
+        }
+    }
+}
+
+impl<Item> crate::Measurer for Option<Item>
+where
+    Item: crate::Measurer,
+{
+    type Decoded = StdOption<Item::Decoded>;
+
+    fn measure(&self, decoded: &Self::Decoded) -> usize {
+        match decoded {
+            StdOption::None => true.measure(),
+            StdOption::Some(item) => {
+                false.measure()
+                + self.item.measure(item)
+            }
+        }
+    }
+}
+

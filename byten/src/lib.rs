@@ -142,6 +142,28 @@ impl<const N: usize> Measure for [u8; N] {
     fn measure(&self) -> usize { N }
 }
 
+impl Decode for bool {
+    fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
+        let byte = u8::decode(encoded, offset)?;
+        match byte {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(DecodeError::InvalidData),
+        }
+    }
+}
+
+impl Encode for bool {
+    fn encode(&self, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError> {
+        let byte = if *self { 1u8 } else { 0u8 };
+        byte.encode(encoded, offset)
+    }
+}
+
+impl Measure for bool {
+    fn measure(&self) -> usize { 0u8.measure() }
+}
+
 macro_rules! impl_smart_ptr {
     ($($t:tt),+ $(,)?) => {
         $(
