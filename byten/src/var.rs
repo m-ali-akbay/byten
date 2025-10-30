@@ -72,6 +72,49 @@ where
     }
 }
 
+pub struct Remaining;
+
+impl Default for Remaining {
+    fn default() -> Self {
+        Remaining
+    }
+}
+
+impl crate::Decoder for Remaining {
+    type Decoded = StdVec<u8>;
+
+    fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
+        if *offset > encoded.len() {
+            return Err(crate::DecodeError::InvalidData);
+        }
+        let remaining = &encoded[*offset..];
+        *offset = encoded.len();
+        Ok(remaining.to_vec())
+    }
+}
+
+impl crate::Encoder for Remaining {
+    type Decoded = StdVec<u8>;
+
+    fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
+        let end = *offset + decoded.len();
+        if end > encoded.len() {
+            return Err(crate::EncodeError::BufferTooSmall);
+        }
+        encoded[*offset..end].copy_from_slice(decoded);
+        *offset = end;
+        Ok(())
+    }
+}
+
+impl crate::Measurer for Remaining {
+    type Decoded = StdVec<u8>;
+
+    fn measure(&self, decoded: &Self::Decoded) -> usize {
+        decoded.len()
+    }
+}
+
 #[derive(Copy, Clone)]
 pub struct U64BE;
 
