@@ -1,7 +1,7 @@
-pub mod primitive;
-pub mod array;
-
-use std::mem::MaybeUninit;
+pub mod fix;
+pub mod prelude;
+pub mod prim;
+pub mod var;
 
 #[cfg(feature = "derive")]
 pub use byten_derive::{Decode, Encode, Measure};
@@ -9,11 +9,36 @@ pub use byten_derive::{Decode, Encode, Measure};
 pub enum DecodeError {
     EOF,
     InvalidDiscriminant,
+    InvalidUSize,
+    ConversionFailure,
+    InvalidData,
+    CodecFailure,
 }
 
 pub enum EncodeError {
     BufferTooSmall,
+    InvalidUSize,
+    CodecFailure,
 }
+
+// codec traits
+
+pub trait Encoder {
+    type Decoded;
+    fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError>;
+}
+
+pub trait Decoder {
+    type Decoded;
+    fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<Self::Decoded, DecodeError>;
+}
+
+pub trait Measurer {
+    type Decoded;
+    fn measure(&self, decoded: &Self::Decoded) -> usize;
+}
+
+// self-codecs
 
 pub trait Decode: Sized {
     fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError>;
@@ -26,6 +51,41 @@ pub trait Encode {
 pub trait Measure {
     fn measure(&self) -> usize;
 }
+
+pub struct SelfCodec<T> {
+    _marker: core::marker::PhantomData<T>,
+}
+
+impl<T> Default for SelfCodec<T> {
+    fn default() -> Self {
+        SelfCodec {
+            _marker: core::marker::PhantomData,
+        }
+    }
+}
+
+impl<T: Decode> Decoder for SelfCodec<T> {
+    type Decoded = T;
+    fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<Self::Decoded, DecodeError> {
+        T::decode(encoded, offset)
+    }
+}
+
+impl<T: Encode> Encoder for SelfCodec<T> {
+    type Decoded = T;
+    fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError> {
+        decoded.encode(encoded, offset)
+    }
+}
+
+impl<T: Measure> Measurer for SelfCodec<T> {
+    type Decoded = T;
+    fn measure(&self, decoded: &Self::Decoded) -> usize {
+        decoded.measure()
+    }
+}
+
+// very basic implementations
 
 impl Decode for u8 {
     fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
@@ -50,9 +110,7 @@ impl Encode for u8 {
 }
 
 impl Measure for u8 {
-    fn measure(&self) -> usize {
-        1
-    }
+    fn measure(&self) -> usize { 1 }
 }
 
 macro_rules! impl_smart_ptr {
@@ -82,37 +140,3 @@ macro_rules! impl_smart_ptr {
 
 // Note: Rc and Arc are not implemented as they brings special ownership semantics that may not be desired in all contexts.
 impl_smart_ptr!(Box);
-
-impl<T, const N: usize> Decode for [T; N]
-where
-    T: Decode,
-{
-    fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
-        let mut arr: [T; N] = unsafe { MaybeUninit::uninit().assume_init() };
-        for i in 0..N {
-            arr[i] = T::decode(encoded, offset)?;
-        }
-        Ok(arr)
-    }
-}
-
-impl<T, const N: usize> Encode for [T; N]
-where
-    T: Encode,
-{
-    fn encode(&self, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError> {
-        for item in self.iter() {
-            item.encode(encoded, offset)?;
-        }
-        Ok(())
-    }
-}
-
-impl<T, const N: usize> Measure for [T; N]
-where
-    T: Measure,
-{
-    fn measure(&self) -> usize {
-        self.iter().map(|item| item.measure()).sum()
-    }
-}

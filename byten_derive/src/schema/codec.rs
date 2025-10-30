@@ -1,49 +1,49 @@
 use quote::quote;
-use syn::{Attribute, Meta, Type, TypePath};
+use syn::{Attribute, Expr, Meta};
 
 use super::{BinarySchema, DecodeContext, EncodeContext, MeasureContext};
 
-pub fn interpret_codec_schema(codec_path: TypePath) -> Box<dyn BinarySchema> {
+pub fn interpret_codec_schema(expr: &Expr) -> Box<dyn BinarySchema> {
     Box::new(CodecSchema {
-        codec_path,
+        expr: expr.clone(),
     })
 }
 
 struct CodecSchema {
-    codec_path: TypePath,
+    expr: Expr,
 }
 
 impl BinarySchema for CodecSchema {
     fn decode(&self, ctx: &DecodeContext) -> proc_macro2::TokenStream {
-        let codec_path = &self.codec_path;
+        let expr = &self.expr;
         let encoded = &ctx.encoded;
         let offset = &ctx.offset;
-        quote! { #codec_path::decode(#encoded, #offset)? }
+        quote! { ::byten::Decoder::decode(&#expr, #encoded, #offset)? }
     }
 
     fn encode(&self, ctx: &EncodeContext) -> proc_macro2::TokenStream {
-        let codec_path = &self.codec_path;
+        let expr = &self.expr;
         let decoded = &ctx.decoded;
         let encoded = &ctx.encoded;
         let offset = &ctx.offset;
-        quote! { #codec_path::encode(#decoded, #encoded, #offset)? }
+        quote! { ::byten::Encoder::encode(&#expr, #decoded, #encoded, #offset)? }
     }
 
     fn measure(&self, ctx: &MeasureContext) -> proc_macro2::TokenStream {
-        let codec_path = &self.codec_path;
+        let expr = &self.expr;
         let decoded = &ctx.decoded;
-        quote! { #codec_path::measure(#decoded) }
+        quote! { ::byten::Measurer::measure(&#expr, #decoded)}
     }
 }
 
-pub fn parse_binary_codec_attribute(attr: &Vec<Attribute>) -> Option<TypePath> {
+pub fn parse_byten_attribute(attr: &Vec<Attribute>) -> Option<Expr> {
     for attribute in attr {
-        if attribute.path().is_ident("binary_codec") {
+        if attribute.path().is_ident("byten") {
             match &attribute.meta {
                 Meta::List(meta) => {
-                    return Some(meta.parse_args::<TypePath>().expect("Invalid binary_codec attribute"));
+                    return Some(meta.parse_args::<Expr>().expect("Invalid byten attribute"));
                 },
-                _ => panic!("Invalid binary_codec attribute format"),
+                _ => panic!("Invalid byten attribute format"),
             }
         }
     }

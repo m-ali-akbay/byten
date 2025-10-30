@@ -1,2 +1,3 @@
 [workspace]
 members = ["byten", "byten_derive"]
+resolver = "3"

@@ -5,7 +5,7 @@ use quote::quote;
 mod schema;
 use schema::*;
 
-#[proc_macro_derive(Decode, attributes(binary_codec))]
+#[proc_macro_derive(Decode, attributes(byten))]
 pub fn derive_decode(input: TokenStream) -> TokenStream {
     let input: DeriveInput = syn::parse(input).unwrap();
     let ident = &input.ident;
@@ -22,15 +22,15 @@ pub fn derive_decode(input: TokenStream) -> TokenStream {
     });
 
     quote! {
-        impl ::binary_codec::Decode for #ident {
-            fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, ::binary_codec::DecodeError> {
+        impl ::byten::Decode for #ident {
+            fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, ::byten::DecodeError> {
                 Ok(#decoded)
             }
         }
     }.into()
 }
 
-#[proc_macro_derive(Encode, attributes(binary_codec))]
+#[proc_macro_derive(Encode, attributes(byten))]
 pub fn derive_encode(input: TokenStream) -> TokenStream {
     let input: DeriveInput = syn::parse(input).unwrap();
     let ident = &input.ident;
@@ -49,8 +49,8 @@ pub fn derive_encode(input: TokenStream) -> TokenStream {
     });
 
     quote! {
-        impl ::binary_codec::Encode for #ident {
-            fn encode(&self, encoded: &mut [u8], offset: &mut usize) -> Result<(), ::binary_codec::EncodeError> {
+        impl ::byten::Encode for #ident {
+            fn encode(&self, encoded: &mut [u8], offset: &mut usize) -> Result<(), ::byten::EncodeError> {
                 #encoded
                 Ok(())
             }
@@ -58,7 +58,7 @@ pub fn derive_encode(input: TokenStream) -> TokenStream {
     }.into()
 }
 
-#[proc_macro_derive(Measure, attributes(binary_codec))]
+#[proc_macro_derive(Measure, attributes(byten))]
 pub fn derive_measure(input: TokenStream) -> TokenStream {
     let input: DeriveInput = syn::parse(input).unwrap();
     let ident = &input.ident;
@@ -75,7 +75,7 @@ pub fn derive_measure(input: TokenStream) -> TokenStream {
     });
 
     quote! {
-        impl ::binary_codec::Measure for #ident {
+        impl ::byten::Measure for #ident {
             fn measure(&self) -> usize {
                 #measured
             }

@@ -1,7 +1,7 @@
 use syn::{Data, DeriveInput, Expr, Ident, Meta, TypePath};
 use quote::quote;
 
-use super::{BinarySchema, DecodeContext, EncodeContext, FieldsSchema, MeasureContext, interpret_codec_schema, interpret_type_path_schema, parse_binary_codec_attribute, interpret_fields_schema};
+use super::{BinarySchema, DecodeContext, EncodeContext, FieldsSchema, MeasureContext, interpret_codec_schema, parse_byten_attribute, interpret_fields_schema};
 
 pub fn interpret_enum_schema(input: &DeriveInput) -> Box<dyn BinarySchema> {
     let Data::Enum(ref data) = input.data else {
@@ -18,11 +18,10 @@ pub fn interpret_enum_schema(input: &DeriveInput) -> Box<dyn BinarySchema> {
         _ => panic!("Invalid repr attribute format"),
     };
 
-    let codec = parse_binary_codec_attribute(&input.attrs);
-    let discriminator = match codec {
-        Some(codec_path) => interpret_codec_schema(codec_path),
-        None => interpret_type_path_schema(&repr),
-    };
+    let discriminator_codec_path = parse_byten_attribute(&input.attrs).unwrap_or_else(|| syn::parse_quote!{
+        ::byten::SelfCodec::<#repr>::default()
+    });
+    let discriminator = interpret_codec_schema(&discriminator_codec_path);
 
     let variants = data.variants.iter().map(|variant| {
         let ident = variant.ident.clone();
@@ -67,7 +66,7 @@ impl BinarySchema for EnumSchema {
             let discriminant = #decode_discriminant;
             match discriminant {
                 #(#variants),*,
-                _ => Err(::binary_codec::DecodeError::InvalidDiscriminant),
+                _ => Err(::byten::DecodeError::InvalidDiscriminant),
             }
         }? }
     }

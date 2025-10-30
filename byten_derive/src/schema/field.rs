@@ -2,9 +2,9 @@ use proc_macro2::Span;
 use syn::{Fields, FieldsNamed, Ident};
 use quote::{ToTokens, quote};
 
-use crate::{interpret_codec_schema, parse_binary_codec_attribute};
+use crate::{interpret_codec_schema, parse_byten_attribute};
 
-use super::{BinarySchema, DecodeContext, EncodeContext, MeasureContext, interpret_type_schema};
+use super::{BinarySchema, DecodeContext, EncodeContext, MeasureContext};
 
 pub trait FieldsSchema: BinarySchema {
     fn wildcard_pattern(&self) -> proc_macro2::TokenStream;
@@ -32,11 +32,12 @@ impl NamedFieldsSchema {
     fn interpret(fields: &FieldsNamed) -> NamedFieldsSchema {
         let fields = fields.named.iter().map(|field| {
             let ident = field.ident.clone().expect("Named field must have an identifier");
-            let ty = match parse_binary_codec_attribute(&field.attrs) {
-                Some(codec) => interpret_codec_schema(codec),
-                None => interpret_type_schema(&field.ty),
-            };
-            (ident, ty)
+            let ty = &field.ty;
+            let codec_path = parse_byten_attribute(&field.attrs).unwrap_or_else(|| syn::parse_quote!{
+                ::byten::SelfCodec::<#ty>::default()
+            });
+            let codec = interpret_codec_schema(&codec_path);
+            (ident, codec)
         }).collect();
         NamedFieldsSchema {
             fields,
@@ -110,10 +111,11 @@ impl UnnamedFieldsSchema {
     fn interpret(fields: &syn::FieldsUnnamed) -> UnnamedFieldsSchema {
         let fields = fields.unnamed.iter().map(|field| {
             if field.ident.is_some() { panic!("Unnamed field must not have an identifier"); }
-            match parse_binary_codec_attribute(&field.attrs) {
-                Some(codec) => interpret_codec_schema(codec),
-                None => interpret_type_schema(&field.ty),
-            }
+            let ty = &field.ty;
+            let codec_path = parse_byten_attribute(&field.attrs).unwrap_or_else(|| syn::parse_quote!{
+                ::byten::SelfCodec::<#ty>::default()
+            });
+            interpret_codec_schema(&codec_path)
         }).collect();
         UnnamedFieldsSchema { fields }
     }

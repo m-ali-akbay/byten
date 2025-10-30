@@ -9,3 +9,4 @@ derive = ["dep:byten_derive"]
 
 [dependencies]
 byten_derive = { path = "../byten_derive", optional = true }
+heapless = "0.9.1"

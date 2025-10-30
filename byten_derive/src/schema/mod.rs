@@ -1,12 +1,10 @@
 
 pub mod r#struct;
-pub mod r#type;
 pub mod r#enum;
 pub mod field;
 pub mod codec;
 
 pub use r#struct::*;
-pub use r#type::*;
 pub use r#enum::*;
 pub use field::*;
 pub use codec::*;
