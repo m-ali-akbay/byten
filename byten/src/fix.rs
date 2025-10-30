@@ -1,4 +1,4 @@
-use crate::{DecodeError, Decoder, EncodeError, Encoder, Measurer};
+use crate::{DecodeError, Decoder, EncodeError, Encoder, FixedMeasurer, Measurer};
 
 pub struct Array<Item, const N: usize>(pub Item);
 
@@ -39,6 +39,15 @@ where
             self.0.encode(item, encoded, offset)?;
         }
         Ok(())
+    }
+}
+
+impl<Item, const N: usize> FixedMeasurer for Array<Item, N>
+where
+    Item: FixedMeasurer,
+{
+    fn fixed_measure(&self) -> usize {
+        N * self.0.fixed_measure()
     }
 }
 

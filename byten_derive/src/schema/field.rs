@@ -95,6 +95,15 @@ impl BinarySchema for NamedFieldsSchema {
             0 #( + #measures )*
         } }
     }
+
+    fn fixed_measure(&self) -> proc_macro2::TokenStream {
+        let measures = self.fields.iter().map(|(_, schema)| {
+            schema.fixed_measure()
+        });
+        quote! {
+            0 #( + #measures )*
+        }
+    }
 }
 
 struct UnnamedFieldsSchema {
@@ -170,6 +179,15 @@ impl BinarySchema for UnnamedFieldsSchema {
             0 #( + #measures )*
         } }
     }
+
+    fn fixed_measure(&self) -> proc_macro2::TokenStream {
+        let measures = self.fields.iter().map(|schema| {
+            schema.fixed_measure()
+        });
+        quote! {
+            0 #( + #measures )*
+        }
+    }
 }
 
 struct UnitFieldsSchema {}
@@ -190,6 +208,10 @@ impl BinarySchema for UnitFieldsSchema {
     }
 
     fn measure(&self, _ctx: &MeasureContext) -> proc_macro2::TokenStream {
+        quote! { 0 }
+    }
+
+    fn fixed_measure(&self) -> proc_macro2::TokenStream {
         quote! { 0 }
     }
 }

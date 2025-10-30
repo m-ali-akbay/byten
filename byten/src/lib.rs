@@ -4,7 +4,7 @@ pub mod prim;
 pub mod var;
 
 #[cfg(feature = "derive")]
-pub use byten_derive::{Decode, Encode, Measure};
+pub use byten_derive::{Decode, Encode, Measure, FixedMeasure};
 
 #[derive(Debug)]
 pub enum DecodeError {
@@ -40,6 +40,10 @@ pub trait Measurer {
     fn measure(&self, decoded: &Self::Decoded) -> usize;
 }
 
+pub trait FixedMeasurer: Measurer {
+    fn fixed_measure(&self) -> usize;
+}
+
 // self-codecs
 
 pub trait Decode: Sized {
@@ -52,6 +56,10 @@ pub trait Encode {
 
 pub trait Measure {
     fn measure(&self) -> usize;
+}
+
+pub trait FixedMeasure: Measure {
+    fn fixed_measure() -> usize;
 }
 
 pub struct SelfCodec<T> {
@@ -87,6 +95,12 @@ impl<T: Measure> Measurer for SelfCodec<T> {
     }
 }
 
+impl<T: FixedMeasure> FixedMeasurer for SelfCodec<T> {
+    fn fixed_measure(&self) -> usize {
+        T::fixed_measure()
+    }
+}
+
 // very basic implementations
 
 impl Decode for u8 {
@@ -111,8 +125,12 @@ impl Encode for u8 {
     }
 }
 
+impl FixedMeasure for u8 {
+    fn fixed_measure() -> usize { 1 }
+}
+
 impl Measure for u8 {
-    fn measure(&self) -> usize { 1 }
+    fn measure(&self) -> usize { Self::fixed_measure() }
 }
 
 impl<const N: usize> Decode for [u8; N] {
@@ -138,8 +156,12 @@ impl<const N: usize> Encode for [u8; N] {
     }
 }
 
+impl<const N: usize> FixedMeasure for [u8; N] {
+    fn fixed_measure() -> usize { N }
+}
+
 impl<const N: usize> Measure for [u8; N] {
-    fn measure(&self) -> usize { N }
+    fn measure(&self) -> usize { Self::fixed_measure() }
 }
 
 impl Decode for bool {
@@ -160,8 +182,12 @@ impl Encode for bool {
     }
 }
 
+impl FixedMeasure for bool {
+    fn fixed_measure() -> usize { 1 }
+}
+
 impl Measure for bool {
-    fn measure(&self) -> usize { 0u8.measure() }
+    fn measure(&self) -> usize { Self::fixed_measure() }
 }
 
 macro_rules! impl_smart_ptr {
@@ -177,6 +203,12 @@ macro_rules! impl_smart_ptr {
             impl<T: Encode> Encode for $t<T> {
                 fn encode(&self, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError> {
                     self.as_ref().encode(encoded, offset)
+                }
+            }
+
+            impl<T: FixedMeasure> FixedMeasure for $t<T> {
+                fn fixed_measure() -> usize {
+                    T::fixed_measure()
                 }
             }
 

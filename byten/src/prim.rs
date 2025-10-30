@@ -1,14 +1,14 @@
 macro_rules! impl_prim {
-    ($ty:tt, $wrapper:ident, $from_bytes:ident, $to_bytes:ident) => {
-        pub struct $wrapper;
+    ($ty:tt, $codec:ident, $from_bytes:ident, $to_bytes:ident) => {
+        pub struct $codec;
 
-        impl Default for $wrapper {
+        impl Default for $codec {
             fn default() -> Self {
-                $wrapper
+                $codec
             }
         }
 
-        impl crate::Decoder for $wrapper {
+        impl crate::Decoder for $codec {
             type Decoded = $ty;
             fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
                 const SIZE: usize = $ty::BITS as usize / 8;
@@ -21,7 +21,7 @@ macro_rules! impl_prim {
             }
         }
 
-        impl crate::Encoder for $wrapper {
+        impl crate::Encoder for $codec {
             type Decoded = $ty;
             fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
                 const SIZE: usize = $ty::BITS as usize / 8;
@@ -35,10 +35,16 @@ macro_rules! impl_prim {
             }
         }
 
-        impl crate::Measurer for $wrapper {
+        impl crate::FixedMeasurer for $codec {
+            fn fixed_measure(&self) -> usize {
+                $ty::BITS as usize / 8
+            }
+        }
+
+        impl crate::Measurer for $codec {
             type Decoded = $ty;
             fn measure(&self, _decoded: &Self::Decoded) -> usize {
-                $ty::BITS as usize / 8
+                crate::FixedMeasurer::fixed_measure(self)
             }
         }
     };

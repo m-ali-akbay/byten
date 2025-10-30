@@ -32,5 +32,9 @@ impl BinarySchema for StructSchema {
     fn measure(&self, ctx: &MeasureContext) -> proc_macro2::TokenStream {
         self.fields.measure(&ctx.clone())
     }
+
+    fn fixed_measure(&self) -> proc_macro2::TokenStream {
+        self.fields.fixed_measure()
+    }
 }
 

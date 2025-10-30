@@ -58,6 +58,28 @@ pub fn derive_encode(input: TokenStream) -> TokenStream {
     }.into()
 }
 
+#[proc_macro_derive(FixedMeasure, attributes(byten))]
+pub fn derive_measure_fixed(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = syn::parse(input).unwrap();
+    let ident = &input.ident;
+
+    let schema = match &input.data {
+        syn::Data::Struct(_) => interpret_struct_schema(&input),
+        syn::Data::Enum(_) => interpret_enum_schema(&input),
+        _ => panic!("FixedMeasure can only be derived for structs and enums"),
+    };
+
+    let measured = schema.fixed_measure();
+
+    quote! {
+        impl ::byten::FixedMeasure for #ident {
+            fn fixed_measure() -> usize {
+                #measured
+            }
+        }
+    }.into()
+}
+
 #[proc_macro_derive(Measure, attributes(byten))]
 pub fn derive_measure(input: TokenStream) -> TokenStream {
     let input: DeriveInput = syn::parse(input).unwrap();
@@ -66,7 +88,7 @@ pub fn derive_measure(input: TokenStream) -> TokenStream {
     let schema = match &input.data {
         syn::Data::Struct(_) => interpret_struct_schema(&input),
         syn::Data::Enum(_) => interpret_enum_schema(&input),
-        _ => panic!("Encode can only be derived for structs and enums"),
+        _ => panic!("Measure can only be derived for structs and enums"),
     };
 
     let measured = schema.measure(&MeasureContext {

@@ -130,5 +130,9 @@ impl BinarySchema for EnumSchema {
             }
         }
     }
+
+    fn fixed_measure(&self) -> proc_macro2::TokenStream {
+        panic!("Fixed measure is not yet supported for enums");
+    }
 }
 

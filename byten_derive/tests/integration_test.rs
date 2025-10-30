@@ -1,17 +1,22 @@
 use byten::{
-    Decode, Encode, Measure,
-    SelfCodec,
-    prim::{U16LE, U16BE, U32BE, U64BE},
-    var,
+    Decode, Encode, FixedMeasure, Measure, SelfCodec, prim::{U16BE, U16LE, U32BE, U64BE}, var
 };
 
 #[derive(Debug, Decode, PartialEq, Eq, Encode, Measure)]
 struct Person {
     #[byten(U32BE)]
     id: u32,
-    age: u8,
+    birthday: Date,
     #[byten(var::Vec::<var::USizeBE, SelfCodec::<Color>>::default())]
     favorite_colors: Vec<Color>,
+}
+
+#[derive(Debug, Decode, PartialEq, Eq, Encode, Measure, FixedMeasure)]
+struct Date {
+    day: u8,
+    month: u8,
+    #[byten(U16BE)]
+    year: u16,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Decode, Encode, Measure)]
@@ -50,7 +55,11 @@ mod test {
     fn test_person_codec() {
         let person = Person {
             id: 123456,
-            age: 30,
+            birthday: Date {
+                day: 23,
+                month: 10,
+                year: 1965,
+            },
             favorite_colors: vec![
                 Color::Red,
                 Color::Grayscale(128),
@@ -69,7 +78,10 @@ mod test {
         let encoded = person.encode_to_vec().expect("Encoding failed");
         assert_eq!(encoded, vec![
             0x00, 0x01, 0xe2, 0x40, // id: U32BE(123456)
-            30,                     // age: 30
+
+            23,                     // birthday.day: u8(23)
+            10,                     // birthday.month: u8(10)
+            0x07, 0xAD,             // birthday.year: U16BE(1965)
 
             0b00000110,             // favorite_colors length: var::USizeBE(6)
 

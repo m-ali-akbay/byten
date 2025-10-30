@@ -29,6 +29,11 @@ impl BinarySchema for CodecSchema {
         quote! { ::byten::Encoder::encode(&#expr, #decoded, #encoded, #offset)? }
     }
 
+    fn fixed_measure(&self) -> proc_macro2::TokenStream {
+        let expr = &self.expr;
+        quote! { ::byten::FixedMeasurer::fixed_measure(&#expr) }
+    }
+
     fn measure(&self, ctx: &MeasureContext) -> proc_macro2::TokenStream {
         let expr = &self.expr;
         let decoded = &ctx.decoded;
