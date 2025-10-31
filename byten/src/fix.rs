@@ -2,13 +2,17 @@ use crate::{DecodeError, Decoder, EncodeError, Encoder, FixedMeasurer, Measurer}
 
 pub struct Array<Item, const N: usize>(pub Item);
 
+impl<Item, const N: usize> Array<Item, N> {
+    pub fn codec(item: Item) -> Self {
+        Self(item)
+    }
+}
+
 impl<Item, const N: usize> Default for Array<Item, N>
 where
     Item: Default,
 {
-    fn default() -> Self {
-        Array(Item::default())
-    }
+    fn default() -> Self { Self::codec(Item::default()) }
 }
 
 impl<Item, const N: usize> Decoder for Array<Item, N>

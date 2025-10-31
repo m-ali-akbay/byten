@@ -119,12 +119,16 @@ pub struct SelfCodec<T> {
     _marker: core::marker::PhantomData<T>,
 }
 
-impl<T> Default for SelfCodec<T> {
-    fn default() -> Self {
+impl<T> SelfCodec<T> {
+    pub const fn codec() -> Self {
         SelfCodec {
             _marker: core::marker::PhantomData,
         }
     }
+}
+
+impl<T> Default for SelfCodec<T> {
+    fn default() -> Self { Self::codec() }
 }
 
 impl<T: Decode> Decoder for SelfCodec<T> {

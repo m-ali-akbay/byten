@@ -1,13 +1,7 @@
-use byten::{Decode, Encode, Measure, SelfCodec, prelude::EncodeToVec as _, prim, util::{Asymmetric, ConvertDecoded, ConvertEncoded}, var};
+use byten::{Decode, Encode, Measure, SelfCodec, prelude::EncodeToVec as _, prim, util::Convert, var};
 
-type U8AsUSize = Asymmetric<
-    ConvertEncoded<SelfCodec<u8>, usize>,
-    ConvertDecoded<usize, SelfCodec<u8>>,
->;
-type U16BEAsUSize = Asymmetric<
-    ConvertEncoded<prim::U16BE, usize>,
-    ConvertDecoded<usize, prim::U16BE>,
->;
+type U8AsUSize = Convert<SelfCodec<u8>,usize>;
+type U16BEAsUSize = Convert<prim::U16BE, usize>;
 
 #[derive(Debug, Encode, Measure, Decode)]
 pub struct Directory {

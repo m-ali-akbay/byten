@@ -2,10 +2,14 @@ macro_rules! impl_prim {
     ($ty:tt, $codec:ident, $from_bytes:ident, $to_bytes:ident) => {
         pub struct $codec;
 
-        impl Default for $codec {
-            fn default() -> Self {
+        impl $codec {
+            pub const fn codec() -> Self {
                 $codec
             }
+        }
+
+        impl Default for $codec {
+            fn default() -> Self { Self::codec() }
         }
 
         impl crate::Decoder for $codec {

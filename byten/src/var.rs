@@ -9,16 +9,19 @@ pub struct Vec<Length, Item> {
     pub item: Item,
 }
 
+impl<Length, Item> Vec<Length, Item> {
+    pub const fn codec(length: Length, item: Item) -> Self {
+        Self { length, item }
+    }
+}
+
 impl<Length, Item> Default for Vec<Length, Item>
 where
     Length: Default,
     Item: Default,
 {
     fn default() -> Self {
-        Vec {
-            length: Length::default(),
-            item: Item::default(),
-        }
+        Self::codec(Length::default(), Item::default())
     }
 }
 
@@ -77,10 +80,14 @@ where
 
 pub struct Remaining;
 
-impl Default for Remaining {
-    fn default() -> Self {
+impl Remaining {
+    pub const fn codec() -> Self {
         Remaining
     }
+}
+
+impl Default for Remaining {
+    fn default() -> Self { Self::codec() }
 }
 
 impl crate::Decoder for Remaining {
@@ -122,14 +129,18 @@ pub struct String<Length> {
     pub length: Length,
 }
 
+impl<Length> String<Length> {
+    pub const fn codec(length: Length) -> Self {
+        Self { length }
+    }
+}
+
 impl<Length> Default for String<Length>
 where
     Length: Default,
 {
     fn default() -> Self {
-        String {
-            length: Length::default(),
-        }
+        Self::codec(Length::default())
     }
 }
 
@@ -186,10 +197,14 @@ where
 #[derive(Copy, Clone)]
 pub struct U64BE;
 
-impl Default for U64BE {
-    fn default() -> Self {
+impl U64BE {
+    pub const fn codec() -> Self {
         U64BE
     }
+}
+
+impl Default for U64BE {
+    fn default() -> Self { Self::codec() }
 }
 
 impl U64BE {
@@ -357,10 +372,14 @@ macro_rules! define_u_be {
     ($name:ident, $ty:ty) => {
         pub struct $name;
 
-        impl Default for $name {
-            fn default() -> Self {
+        impl $name {
+            pub const fn codec() -> Self {
                 $name
             }
+        }
+
+        impl Default for $name {
+            fn default() -> Self { Self::codec() }
         }
 
         impl crate::Decoder for $name {
@@ -398,15 +417,17 @@ pub struct Option<Item> {
     pub item: Item,
 }
 
+impl<Item> Option<Item> {
+    pub fn codec(item: Item) -> Self {
+        Self { item }
+    }
+}
+
 impl<Item> Default for Option<Item>
 where
     Item: Default,
 {
-    fn default() -> Self {
-        Option {
-            item: Item::default(),
-        }
-    }
+    fn default() -> Self { Self::codec(Item::default()) }
 }
 
 impl<Item> crate::Decoder for Option<Item>
