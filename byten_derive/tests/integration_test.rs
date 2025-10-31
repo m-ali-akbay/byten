@@ -1,11 +1,15 @@
 use byten::{
-    Decode, Encode, FixedMeasure, Measure, SelfCodec, prim::{U16BE, U16LE, U32BE, U64BE}, var
+    Decode, Encode, FixedMeasure, Measure, SelfCodec, prim::{U16BE, U16LE, U32BE, U64BE}, util::Convert, var
 };
+
+type U8AsUSize = Convert<SelfCodec<u8>,usize>;
 
 #[derive(Debug, Decode, PartialEq, Eq, Encode, Measure)]
 struct Person {
     #[byten(U32BE)]
     id: u32,
+    #[byten(var::str::String::<U8AsUSize>::default())]
+    pub name: String,
     birthday: Date,
     #[byten(var::Vec::<var::USizeBE, SelfCodec::<Color>>::default())]
     favorite_colors: Vec<Color>,
@@ -55,6 +59,7 @@ mod test {
     fn test_person_codec() {
         let person = Person {
             id: 123456,
+            name: "Alice".to_string(),
             birthday: Date {
                 day: 23,
                 month: 10,
@@ -77,6 +82,9 @@ mod test {
 
         let expected_encoded = vec![
             0x00, 0x01, 0xe2, 0x40, // id: U32BE(123456)
+
+            0x05,                   // name length: var::USizeBE(5)
+            0x41, 0x6c, 0x69, 0x63, 0x65, // name: "Alice"
 
             23,                     // birthday.day: u8(23)
             10,                     // birthday.month: u8(10)

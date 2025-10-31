@@ -1,8 +1,10 @@
-use std::{iter, vec::Vec as StdVec, string::String as StdString, option::Option as StdOption};
+use std::{iter, vec::Vec as StdVec, option::Option as StdOption};
 
 use crate::Encode as _;
 use crate::Decode as _;
 use crate::Measure as _;
+
+pub mod str;
 
 pub struct Vec<Length, Item> {
     pub length: Length,
@@ -78,6 +80,74 @@ where
     }
 }
 
+pub struct Buffer<Length> {
+    pub length: Length,
+}
+
+impl<Length> Buffer<Length> {
+    pub const fn codec(length: Length) -> Self {
+        Self { length }
+    }
+}
+
+impl<Length> Default for Buffer<Length>
+where
+    Length: Default,
+{
+    fn default() -> Self {
+        Self::codec(Length::default())
+    }
+}
+
+impl<Length> crate::Decoder for Buffer<Length>
+where
+    Length: crate::Decoder<Decoded = usize>,
+{
+    type Decoded = StdVec<u8>;
+
+    fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
+        let size = self.length.decode(encoded, offset)?;
+        if *offset + size > encoded.len() {
+            return Err(crate::DecodeError::InvalidData);
+        }
+        let buffer = encoded[*offset..*offset + size].to_vec();
+        *offset += size;
+        Ok(buffer)
+    }
+}
+
+impl<Length> crate::Encoder for Buffer<Length>
+where
+    Length: crate::Encoder<Decoded = usize>,
+{
+    type Decoded = StdVec<u8>;
+
+    fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
+        let size = decoded.len();
+        self.length.encode(&size, encoded, offset)?;
+        let end = *offset + size;
+        if end > encoded.len() {
+            return Err(crate::EncodeError::BufferTooSmall);
+        }
+        encoded[*offset..end].copy_from_slice(decoded);
+        *offset = end;
+        Ok(())
+    }
+}
+
+impl<Length> crate::Measurer for Buffer<Length>
+where
+    Length: crate::Measurer<Decoded = usize>,
+{
+    type Decoded = StdVec<u8>;
+
+    fn measure(&self, decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
+        let size = decoded.len();
+        let size_measure = self.length.measure(&size)?;
+        Ok(size_measure + size)
+    }
+}
+
 pub struct Remaining;
 
 impl Remaining {
@@ -122,75 +192,6 @@ impl crate::Measurer for Remaining {
 
     fn measure(&self, decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
         Ok(decoded.len())
-    }
-}
-
-pub struct String<Length> {
-    pub length: Length,
-}
-
-impl<Length> String<Length> {
-    pub const fn codec(length: Length) -> Self {
-        Self { length }
-    }
-}
-
-impl<Length> Default for String<Length>
-where
-    Length: Default,
-{
-    fn default() -> Self {
-        Self::codec(Length::default())
-    }
-}
-
-impl<Length> crate::Decoder for String<Length>
-where
-    Length: crate::Decoder<Decoded = usize>,
-{
-    type Decoded = StdString;
-
-    fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
-        let size = self.length.decode(encoded, offset)?;
-        if *offset + size > encoded.len() {
-            return Err(crate::DecodeError::InvalidData);
-        }
-        let string_bytes = &encoded[*offset..*offset + size];
-        let string = StdString::from_utf8(string_bytes.to_vec()).map_err(|_| crate::DecodeError::InvalidData)?;
-        *offset += size;
-        Ok(string)
-    }
-}
-
-impl<Length> crate::Encoder for String<Length>
-where
-    Length: crate::Encoder<Decoded = usize>,
-{
-    type Decoded = StdString;
-
-    fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
-        let size = decoded.len();
-        self.length.encode(&size, encoded, offset)?;
-        let end = *offset + size;
-        if end > encoded.len() {
-            return Err(crate::EncodeError::BufferTooSmall);
-        }
-        encoded[*offset..end].copy_from_slice(decoded.as_bytes());
-        *offset = end;
-        Ok(())
-    }
-}
-
-impl<Length> crate::Measurer for String<Length>
-where
-    Length: crate::Measurer<Decoded = usize>,
-{
-    type Decoded = StdString;
-
-    fn measure(&self, decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
-        let size = decoded.len();
-        let size_measure = self.length.measure(&size)?;
-        Ok(size_measure + size)
     }
 }
 

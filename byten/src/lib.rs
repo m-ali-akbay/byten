@@ -4,7 +4,7 @@ pub mod prim;
 pub mod util;
 pub mod var;
 
-use std::{convert::Infallible, num::TryFromIntError};
+use std::{convert::Infallible, ffi::CString, num::TryFromIntError};
 
 #[cfg(feature = "derive")]
 pub use byten_derive::{Decode, Encode, Measure, FixedMeasure};
@@ -280,3 +280,22 @@ macro_rules! impl_smart_ptr {
 
 // Note: Rc and Arc are not implemented as they brings special ownership semantics that may not be desired in all contexts.
 impl_smart_ptr!(Box);
+
+// Conventional types
+impl Decode for CString {
+    fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
+        var::str::CString.decode(encoded, offset)
+    }
+}
+
+impl Encode for CString {
+    fn encode(&self, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError> {
+        var::str::CString.encode(self, encoded, offset)
+    }
+}
+
+impl Measure for CString {
+    fn measure(&self) -> Result<usize, EncodeError> {
+        var::str::CString.measure(self)
+    }
+}

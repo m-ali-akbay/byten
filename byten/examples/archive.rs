@@ -1,21 +1,20 @@
+use std::ffi::CString;
+
 use byten::{Decode, Encode, Measure, SelfCodec, prelude::EncodeToVec as _, prim, util::Convert, var};
 
-type U8AsUSize = Convert<SelfCodec<u8>,usize>;
 type U16BEAsUSize = Convert<prim::U16BE, usize>;
 
 #[derive(Debug, Encode, Measure, Decode)]
 pub struct Directory {
-    #[byten(var::String::<U8AsUSize>::default())]
-    pub name: String,
-    #[byten(var::Vec::<U16BEAsUSize, SelfCodec<Entry>>::default())]
-    pub entries: Vec<Entry>,
+    pub name: CString,
+    #[byten(var::Vec::<U16BEAsUSize, SelfCodec<_>>::default())]
+    pub entries: Vec<Box<Entry>>,
 }
 
 #[derive(Debug, Encode, Measure, Decode)]
 pub struct File {
-    #[byten(var::String::<U8AsUSize>::default())]
-    pub name: String,
-    #[byten(var::Vec::<U8AsUSize, SelfCodec<_>>::default())]
+    pub name: CString,
+    #[byten(var::Buffer::<U16BEAsUSize>::default())]
     pub content: Vec<u8>,
 }
 
@@ -28,21 +27,21 @@ pub enum Entry {
 
 fn main() {
     let dir = Directory {
-        name: "root".to_string(),
+        name: CString::new("root").unwrap(),
         entries: vec![
-            Entry::File(File {
-                name: "file1.txt".to_string(),
+            Box::new(Entry::File(File {
+                name: CString::new("file1.txt").unwrap(),
                 content: b"Hello, World!".to_vec(),
-            }),
-            Entry::Directory(Directory {
-                name: "subdir".to_string(),
+            })),
+            Box::new(Entry::Directory(Directory {
+                name: CString::new("subdir").unwrap(),
                 entries: vec![
-                    Entry::File(File {
-                        name: "file2.txt".to_string(),
+                    Box::new(Entry::File(File {
+                        name: CString::new("file2.txt").unwrap(),
                         content: b"Rust is awesome!".to_vec(),
-                    }),
+                    })),
                 ],
-            }),
+            })),
         ],
     };
 
