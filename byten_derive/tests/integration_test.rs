@@ -1,10 +1,10 @@
 use byten::{
-    Decode, Encode, FixedMeasure, Measure, SelfCodec, prim::{U16BE, U16LE, U32BE, U64BE}, util::Convert, var
+    Decode, DecodeOwned, Encode, MeasureFixed, Measure, SelfCodec, prim::{U16BE, U16LE, U32BE, U64BE}, util::Convert, var
 };
 
 type U8AsUSize = Convert<SelfCodec<u8>,usize>;
 
-#[derive(Debug, Decode, PartialEq, Eq, Encode, Measure)]
+#[derive(Debug, DecodeOwned, PartialEq, Eq, Encode, Measure)]
 struct Person {
     #[byten(U32BE)]
     id: u32,
@@ -15,7 +15,7 @@ struct Person {
     favorite_colors: Vec<Color>,
 }
 
-#[derive(Debug, Decode, PartialEq, Eq, Encode, Measure, FixedMeasure)]
+#[derive(Debug, DecodeOwned, PartialEq, Eq, Encode, MeasureFixed)]
 struct Date {
     day: u8,
     month: u8,
@@ -23,7 +23,7 @@ struct Date {
     year: u16,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Decode, Encode, Measure)]
+#[derive(Clone, Debug, PartialEq, Eq, DecodeOwned, Encode, Measure)]
 #[repr(u16)]
 #[byten(U16LE)]
 enum Color {

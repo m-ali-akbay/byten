@@ -21,15 +21,16 @@ where
     fn default() -> Self { Self::codec(Codec::default()) }
 }
 
-impl<Codec, Decoded, Error> crate::Decoder for Convert<Codec, Decoded>
+impl<'encoded, 'decoded, Codec, Decoded, Error> crate::BorrowedDecoder<'encoded, 'decoded> for Convert<Codec, Decoded>
 where
-    Codec: crate::Decoder,
+    Codec: crate::BorrowedDecoder<'encoded, 'decoded>,
     Codec::Decoded: TryInto<Decoded, Error = Error>,
     Error: Into<crate::DecodeError>,
+    Decoded: 'decoded,
 {
     type Decoded = Decoded;
-    fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
-        let intermediate = self.codec.decode(encoded, offset)?;
+    fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
+        let intermediate = self.codec.borrowed_decode(encoded, offset)?;
         let decoded = intermediate.try_into().map_err(Into::into)?;
         Ok(decoded)
     }
@@ -75,7 +76,7 @@ where
     Codec::Decoded: TryFrom<Decoded, Error = Error>,
     Error: Into<crate::EncodeError>,
 {
-    fn fixed_measure(&self) -> usize {
-        self.codec.fixed_measure()
+    fn measure_fixed(&self) -> usize {
+        self.codec.measure_fixed()
     }
 }

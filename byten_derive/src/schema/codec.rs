@@ -18,7 +18,7 @@ impl BinarySchema for CodecSchema {
         let expr = &self.expr;
         let encoded = &ctx.encoded;
         let offset = &ctx.offset;
-        quote! { ::byten::Decoder::decode(&#expr, #encoded, #offset)? }
+        quote! { ::byten::BorrowedDecoder::borrowed_decode(&#expr, #encoded, #offset)? }
     }
 
     fn encode(&self, ctx: &EncodeContext) -> proc_macro2::TokenStream {
@@ -29,9 +29,9 @@ impl BinarySchema for CodecSchema {
         quote! { ::byten::Encoder::encode(&#expr, #decoded, #encoded, #offset)? }
     }
 
-    fn fixed_measure(&self) -> proc_macro2::TokenStream {
+    fn measure_fixed(&self) -> proc_macro2::TokenStream {
         let expr = &self.expr;
-        quote! { ::byten::FixedMeasurer::fixed_measure(&#expr) }
+        quote! { ::byten::FixedMeasurer::measure_fixed(&#expr) }
     }
 
     fn measure(&self, ctx: &MeasureContext) -> proc_macro2::TokenStream {

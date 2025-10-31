@@ -12,9 +12,9 @@ macro_rules! impl_prim {
             fn default() -> Self { Self::codec() }
         }
 
-        impl crate::Decoder for $codec {
+        impl<'encoded> crate::BorrowedDecoder<'encoded, '_> for $codec {
             type Decoded = $ty;
-            fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
+            fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
                 const SIZE: usize = $ty::BITS as usize / 8;
                 if *offset + SIZE > encoded.len() {
                     return Err(crate::DecodeError::EOF);
@@ -40,7 +40,7 @@ macro_rules! impl_prim {
         }
 
         impl crate::FixedMeasurer for $codec {
-            fn fixed_measure(&self) -> usize {
+            fn measure_fixed(&self) -> usize {
                 $ty::BITS as usize / 8
             }
         }
@@ -48,7 +48,7 @@ macro_rules! impl_prim {
         impl crate::Measurer for $codec {
             type Decoded = $ty;
             fn measure(&self, _decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
-                Ok(crate::FixedMeasurer::fixed_measure(self))
+                Ok(crate::FixedMeasurer::measure_fixed(self))
             }
         }
     };

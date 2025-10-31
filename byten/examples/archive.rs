@@ -1,24 +1,24 @@
 use std::ffi::CString;
 
-use byten::{Decode, Encode, Measure, SelfCodec, prelude::EncodeToVec as _, prim, util::Convert, var};
+use byten::{Decode, DecodeOwned, Encode, Measure, SelfCodec, prelude::EncodeToVec as _, prim, util::Convert, var};
 
 type U16BEAsUSize = Convert<prim::U16BE, usize>;
 
-#[derive(Debug, Encode, Measure, Decode)]
+#[derive(Debug, Encode, Measure, DecodeOwned)]
 pub struct Directory {
     pub name: CString,
     #[byten(var::Vec::<U16BEAsUSize, SelfCodec<_>>::default())]
     pub entries: Vec<Box<Entry>>,
 }
 
-#[derive(Debug, Encode, Measure, Decode)]
+#[derive(Debug, Encode, Measure, DecodeOwned)]
 pub struct File {
     pub name: CString,
     #[byten(var::Buffer::<U16BEAsUSize>::default())]
     pub content: Vec<u8>,
 }
 
-#[derive(Debug, Encode, Measure, Decode)]
+#[derive(Debug, Encode, Measure, DecodeOwned)]
 #[repr(u8)]
 pub enum Entry {
     File(File) = 1,

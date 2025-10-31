@@ -7,7 +7,7 @@ pub mod var;
 use std::{convert::Infallible, ffi::CString, num::TryFromIntError};
 
 #[cfg(feature = "derive")]
-pub use byten_derive::{Decode, Encode, Measure, FixedMeasure};
+pub use byten_derive::{Decode, DecodeOwned, Encode, Measure, MeasureFixed};
 
 use thiserror::Error;
 
@@ -83,9 +83,9 @@ pub trait Encoder {
     fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError>;
 }
 
-pub trait Decoder {
-    type Decoded;
-    fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<Self::Decoded, DecodeError>;
+pub trait BorrowedDecoder<'encoded, 'decoded> {
+    type Decoded: 'decoded;
+    fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, DecodeError>;
 }
 
 pub trait Measurer {
@@ -94,13 +94,21 @@ pub trait Measurer {
 }
 
 pub trait FixedMeasurer: Measurer {
-    fn fixed_measure(&self) -> usize;
+    fn measure_fixed(&self) -> usize;
 }
 
 // self-codecs
 
-pub trait Decode: Sized {
-    fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError>;
+pub trait DecodeOwned: Sized + for<'encoded> Decode<'encoded> {
+    fn decode_owned(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
+        <Self as Decode>::decode(encoded, offset)
+    }
+}
+
+pub trait Decode<'encoded> {
+    fn decode(encoded: &'encoded [u8], offset: &mut usize) -> Result<Self, DecodeError>
+    where
+        Self: Sized;
 }
 
 pub trait Encode {
@@ -111,8 +119,8 @@ pub trait Measure {
     fn measure(&self) -> Result<usize, EncodeError>;
 }
 
-pub trait FixedMeasure: Measure {
-    fn fixed_measure() -> usize;
+pub trait MeasureFixed: Measure {
+    fn measure_fixed() -> usize;
 }
 
 pub struct SelfCodec<T> {
@@ -131,9 +139,13 @@ impl<T> Default for SelfCodec<T> {
     fn default() -> Self { Self::codec() }
 }
 
-impl<T: Decode> Decoder for SelfCodec<T> {
+impl<'encoded, 'decoded, T> BorrowedDecoder<'encoded, 'decoded> for SelfCodec<T>
+where
+    T: Decode<'encoded>,
+    T: 'decoded,
+{
     type Decoded = T;
-    fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<Self::Decoded, DecodeError> {
+    fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, DecodeError> {
         T::decode(encoded, offset)
     }
 }
@@ -152,15 +164,15 @@ impl<T: Measure> Measurer for SelfCodec<T> {
     }
 }
 
-impl<T: FixedMeasure> FixedMeasurer for SelfCodec<T> {
-    fn fixed_measure(&self) -> usize {
-        T::fixed_measure()
+impl<T: MeasureFixed> FixedMeasurer for SelfCodec<T> {
+    fn measure_fixed(&self) -> usize {
+        T::measure_fixed()
     }
 }
 
 // very basic implementations
 
-impl Decode for u8 {
+impl Decode<'_> for u8 {
     fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
         if *offset >= encoded.len() {
             return Err(DecodeError::EOF);
@@ -182,15 +194,15 @@ impl Encode for u8 {
     }
 }
 
-impl FixedMeasure for u8 {
-    fn fixed_measure() -> usize { 1 }
+impl MeasureFixed for u8 {
+    fn measure_fixed() -> usize { 1 }
 }
 
 impl Measure for u8 {
-    fn measure(&self) -> Result<usize, EncodeError> { Ok(Self::fixed_measure()) }
+    fn measure(&self) -> Result<usize, EncodeError> { Ok(Self::measure_fixed()) }
 }
 
-impl<const N: usize> Decode for [u8; N] {
+impl<const N: usize> Decode<'_> for [u8; N] {
     fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
         if *offset + N > encoded.len() {
             return Err(DecodeError::EOF);
@@ -213,15 +225,15 @@ impl<const N: usize> Encode for [u8; N] {
     }
 }
 
-impl<const N: usize> FixedMeasure for [u8; N] {
-    fn fixed_measure() -> usize { N }
+impl<const N: usize> MeasureFixed for [u8; N] {
+    fn measure_fixed() -> usize { N }
 }
 
 impl<const N: usize> Measure for [u8; N] {
-    fn measure(&self) -> Result<usize, EncodeError> { Ok(Self::fixed_measure()) }
+    fn measure(&self) -> Result<usize, EncodeError> { Ok(Self::measure_fixed()) }
 }
 
-impl Decode for bool {
+impl Decode<'_> for bool {
     fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
         let byte = u8::decode(encoded, offset)?;
         match byte {
@@ -239,19 +251,19 @@ impl Encode for bool {
     }
 }
 
-impl FixedMeasure for bool {
-    fn fixed_measure() -> usize { 1 }
+impl MeasureFixed for bool {
+    fn measure_fixed() -> usize { 1 }
 }
 
 impl Measure for bool {
-    fn measure(&self) -> Result<usize, EncodeError> { Ok(Self::fixed_measure()) }
+    fn measure(&self) -> Result<usize, EncodeError> { Ok(Self::measure_fixed()) }
 }
 
 macro_rules! impl_smart_ptr {
     ($($t:tt),+ $(,)?) => {
         $(
-            impl<T: Decode> Decode for $t<T> {
-                fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
+            impl<'encoded, T: Decode<'encoded>> Decode<'encoded> for $t<T> {
+                fn decode(encoded: &'encoded [u8], offset: &mut usize) -> Result<Self, DecodeError> {
                     let value = T::decode(encoded, offset)?;
                     Ok(Self::new(value))
                 }
@@ -263,9 +275,9 @@ macro_rules! impl_smart_ptr {
                 }
             }
 
-            impl<T: FixedMeasure> FixedMeasure for $t<T> {
-                fn fixed_measure() -> usize {
-                    T::fixed_measure()
+            impl<T: MeasureFixed> MeasureFixed for $t<T> {
+                fn measure_fixed() -> usize {
+                    T::measure_fixed()
                 }
             }
 
@@ -282,9 +294,9 @@ macro_rules! impl_smart_ptr {
 impl_smart_ptr!(Box);
 
 // Conventional types
-impl Decode for CString {
+impl Decode<'_> for CString {
     fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
-        var::str::CString.decode(encoded, offset)
+        var::str::CString.borrowed_decode(encoded, offset)
     }
 }
 

@@ -5,10 +5,37 @@ use quote::quote;
 mod schema;
 use schema::*;
 
+#[proc_macro_derive(DecodeOwned, attributes(byten))]
+pub fn derive_decode_owned(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = syn::parse(input).unwrap();
+    let ident = &input.ident;
+    let generics = &input.generics;
+
+    let schema = match &input.data {
+        syn::Data::Struct(_) => interpret_struct_schema(&input),
+        syn::Data::Enum(_) => interpret_enum_schema(&input),
+        _ => panic!("DecodeOwned can only be derived for structs and enums"),
+    };
+
+    let decoded = schema.decode(&DecodeContext {
+        encoded: quote! { encoded },
+        offset: quote! { offset },
+    });
+
+    quote! {
+        impl #generics ::byten::Decode<'_> for #ident #generics {
+            fn decode(encoded: &'_ [u8], offset: &mut usize) -> Result<Self, ::byten::DecodeError> {
+                Ok(#decoded)
+            }
+        }
+    }.into()
+}
+
 #[proc_macro_derive(Decode, attributes(byten))]
 pub fn derive_decode(input: TokenStream) -> TokenStream {
     let input: DeriveInput = syn::parse(input).unwrap();
     let ident = &input.ident;
+    let generics = &input.generics;
 
     let schema = match &input.data {
         syn::Data::Struct(_) => interpret_struct_schema(&input),
@@ -22,8 +49,8 @@ pub fn derive_decode(input: TokenStream) -> TokenStream {
     });
 
     quote! {
-        impl ::byten::Decode for #ident {
-            fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, ::byten::DecodeError> {
+        impl #generics ::byten::Decode<'encoded> for #ident #generics {
+            fn decode(encoded: &'encoded [u8], offset: &mut usize) -> Result<Self, ::byten::DecodeError> {
                 Ok(#decoded)
             }
         }
@@ -34,6 +61,7 @@ pub fn derive_decode(input: TokenStream) -> TokenStream {
 pub fn derive_encode(input: TokenStream) -> TokenStream {
     let input: DeriveInput = syn::parse(input).unwrap();
     let ident = &input.ident;
+    let generics = &input.generics;
 
     let schema = match &input.data {
         syn::Data::Struct(_) => interpret_struct_schema(&input),
@@ -49,7 +77,7 @@ pub fn derive_encode(input: TokenStream) -> TokenStream {
     });
 
     quote! {
-        impl ::byten::Encode for #ident {
+        impl #generics ::byten::Encode for #ident #generics {
             fn encode(&self, encoded: &mut [u8], offset: &mut usize) -> Result<(), ::byten::EncodeError> {
                 #encoded
                 Ok(())
@@ -58,23 +86,30 @@ pub fn derive_encode(input: TokenStream) -> TokenStream {
     }.into()
 }
 
-#[proc_macro_derive(FixedMeasure, attributes(byten))]
+#[proc_macro_derive(MeasureFixed, attributes(byten))]
 pub fn derive_measure_fixed(input: TokenStream) -> TokenStream {
     let input: DeriveInput = syn::parse(input).unwrap();
     let ident = &input.ident;
+    let generics = &input.generics;
 
     let schema = match &input.data {
         syn::Data::Struct(_) => interpret_struct_schema(&input),
         syn::Data::Enum(_) => interpret_enum_schema(&input),
-        _ => panic!("FixedMeasure can only be derived for structs and enums"),
+        _ => panic!("MeasureFixed can only be derived for structs and enums"),
     };
 
-    let measured = schema.fixed_measure();
+    let measured = schema.measure_fixed();
 
     quote! {
-        impl ::byten::FixedMeasure for #ident {
-            fn fixed_measure() -> usize {
+        impl #generics ::byten::MeasureFixed for #ident #generics {
+            fn measure_fixed() -> usize {
                 #measured
+            }
+        }
+
+        impl #generics ::byten::Measure for #ident #generics {
+            fn measure(&self) -> Result<usize, ::byten::EncodeError> {
+                Ok(Self::measure_fixed())
             }
         }
     }.into()
@@ -84,6 +119,7 @@ pub fn derive_measure_fixed(input: TokenStream) -> TokenStream {
 pub fn derive_measure(input: TokenStream) -> TokenStream {
     let input: DeriveInput = syn::parse(input).unwrap();
     let ident = &input.ident;
+    let generics = &input.generics;
 
     let schema = match &input.data {
         syn::Data::Struct(_) => interpret_struct_schema(&input),
@@ -97,7 +133,7 @@ pub fn derive_measure(input: TokenStream) -> TokenStream {
     });
 
     quote! {
-        impl ::byten::Measure for #ident {
+        impl #generics ::byten::Measure for #ident #generics {
             fn measure(&self) -> Result<usize, ::byten::EncodeError> {
                 Ok(#measured)
             }

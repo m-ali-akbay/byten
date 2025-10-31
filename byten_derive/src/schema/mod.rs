@@ -12,7 +12,7 @@ pub use codec::*;
 pub trait BinarySchema {
     fn decode(&self, _ctx: &DecodeContext) -> proc_macro2::TokenStream { unimplemented!() }
     fn encode(&self, _ctx: &EncodeContext) -> proc_macro2::TokenStream { unimplemented!() }
-    fn fixed_measure(&self) -> proc_macro2::TokenStream { unimplemented!() }
+    fn measure_fixed(&self) -> proc_macro2::TokenStream { unimplemented!() }
     fn measure(&self, _ctx: &MeasureContext) -> proc_macro2::TokenStream { unimplemented!() }
 }
 
