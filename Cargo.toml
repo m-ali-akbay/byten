@@ -3,7 +3,7 @@ members = ["byten", "byten_derive"]
 resolver = "3"
 
 [workspace.package]
-version = "0.0.2"
+version = "0.0.3"
 edition = "2024"
 authors = ["Ali Akbay <maakbay@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -13,5 +13,5 @@ keywords = ["binary", "codec", "serialization", "encoding", "decoding"]
 categories = ["encoding", "parsing"]
 
 [workspace.dependencies]
-byten = { version = "0.0", path = "byten", default-features = false }
-byten_derive = { version = "0.0", path = "byten_derive" }
+byten = { version = "0.0", path = "./byten" }
+byten_derive = { version = "0.0", path = "./byten_derive" }

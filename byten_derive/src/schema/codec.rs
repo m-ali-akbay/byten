@@ -37,7 +37,7 @@ impl BinarySchema for CodecSchema {
     fn measure(&self, ctx: &MeasureContext) -> proc_macro2::TokenStream {
         let expr = &self.expr;
         let decoded = &ctx.decoded;
-        quote! { ::byten::Measurer::measure(&#expr, #decoded)}
+        quote! { ::byten::Measurer::measure(&#expr, #decoded)? }
     }
 }
 

@@ -98,8 +98,8 @@ pub fn derive_measure(input: TokenStream) -> TokenStream {
 
     quote! {
         impl ::byten::Measure for #ident {
-            fn measure(&self) -> usize {
-                #measured
+            fn measure(&self) -> Result<usize, ::byten::EncodeError> {
+                Ok(#measured)
             }
         }
     }.into()

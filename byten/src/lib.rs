@@ -1,7 +1,10 @@
 pub mod fix;
 pub mod prelude;
 pub mod prim;
+pub mod util;
 pub mod var;
+
+use std::{convert::Infallible, num::TryFromIntError};
 
 #[cfg(feature = "derive")]
 pub use byten_derive::{Decode, Encode, Measure, FixedMeasure};
@@ -33,6 +36,18 @@ pub enum DecodeError {
     Anyhow(#[from] anyhow::Error),
 }
 
+impl From<Infallible> for DecodeError {
+    fn from(_: Infallible) -> Self {
+        unreachable!()
+    }
+}
+
+impl From<TryFromIntError> for DecodeError {
+    fn from(_: TryFromIntError) -> Self {
+        DecodeError::CodecFailure
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum EncodeError {
     #[error("Buffer too small")]
@@ -49,6 +64,18 @@ pub enum EncodeError {
     Anyhow(#[from] anyhow::Error),
 }
 
+impl From<Infallible> for EncodeError {
+    fn from(_: Infallible) -> Self {
+        unreachable!()
+    }
+}
+
+impl From<TryFromIntError> for EncodeError {
+    fn from(_: TryFromIntError) -> Self {
+        EncodeError::CodecFailure
+    }
+}
+
 // codec traits
 
 pub trait Encoder {
@@ -63,7 +90,7 @@ pub trait Decoder {
 
 pub trait Measurer {
     type Decoded;
-    fn measure(&self, decoded: &Self::Decoded) -> usize;
+    fn measure(&self, decoded: &Self::Decoded) -> Result<usize, EncodeError>;
 }
 
 pub trait FixedMeasurer: Measurer {
@@ -81,7 +108,7 @@ pub trait Encode {
 }
 
 pub trait Measure {
-    fn measure(&self) -> usize;
+    fn measure(&self) -> Result<usize, EncodeError>;
 }
 
 pub trait FixedMeasure: Measure {
@@ -116,7 +143,7 @@ impl<T: Encode> Encoder for SelfCodec<T> {
 
 impl<T: Measure> Measurer for SelfCodec<T> {
     type Decoded = T;
-    fn measure(&self, decoded: &Self::Decoded) -> usize {
+    fn measure(&self, decoded: &Self::Decoded) -> Result<usize, EncodeError> {
         decoded.measure()
     }
 }
@@ -156,7 +183,7 @@ impl FixedMeasure for u8 {
 }
 
 impl Measure for u8 {
-    fn measure(&self) -> usize { Self::fixed_measure() }
+    fn measure(&self) -> Result<usize, EncodeError> { Ok(Self::fixed_measure()) }
 }
 
 impl<const N: usize> Decode for [u8; N] {
@@ -187,7 +214,7 @@ impl<const N: usize> FixedMeasure for [u8; N] {
 }
 
 impl<const N: usize> Measure for [u8; N] {
-    fn measure(&self) -> usize { Self::fixed_measure() }
+    fn measure(&self) -> Result<usize, EncodeError> { Ok(Self::fixed_measure()) }
 }
 
 impl Decode for bool {
@@ -213,7 +240,7 @@ impl FixedMeasure for bool {
 }
 
 impl Measure for bool {
-    fn measure(&self) -> usize { Self::fixed_measure() }
+    fn measure(&self) -> Result<usize, EncodeError> { Ok(Self::fixed_measure()) }
 }
 
 macro_rules! impl_smart_ptr {
@@ -239,7 +266,7 @@ macro_rules! impl_smart_ptr {
             }
 
             impl<T: Measure> Measure for $t<T> {
-                fn measure(&self) -> usize {
+                fn measure(&self) -> Result<usize, EncodeError> {
                     self.as_ref().measure()
                 }
             }

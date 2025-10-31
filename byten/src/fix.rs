@@ -57,7 +57,11 @@ where
 {
     type Decoded = [Item::Decoded; N];
 
-    fn measure(&self, decoded: &Self::Decoded) -> usize {
-        decoded.iter().map(|item| self.0.measure(item)).sum()
+    fn measure(&self, decoded: &Self::Decoded) -> Result<usize, EncodeError> {
+        let mut total = 0;
+        for item in decoded.iter() {
+            total += self.0.measure(item)?;
+        }
+        Ok(total)
     }
 }

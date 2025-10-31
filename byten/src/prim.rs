@@ -43,8 +43,8 @@ macro_rules! impl_prim {
 
         impl crate::Measurer for $codec {
             type Decoded = $ty;
-            fn measure(&self, _decoded: &Self::Decoded) -> usize {
-                crate::FixedMeasurer::fixed_measure(self)
+            fn measure(&self, _decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
+                Ok(crate::FixedMeasurer::fixed_measure(self))
             }
         }
     };

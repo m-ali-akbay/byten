@@ -74,9 +74,8 @@ mod test {
                 Color::Unknown(),
             ],
         };
-        
-        let encoded = person.encode_to_vec().expect("Encoding failed");
-        assert_eq!(encoded, vec![
+
+        let expected_encoded = vec![
             0x00, 0x01, 0xe2, 0x40, // id: U32BE(123456)
 
             23,                     // birthday.day: u8(23)
@@ -107,7 +106,13 @@ mod test {
             0b1100, 0b10101010, // full bytes
 
             0xff, 0x00,          // Color::Unknown discriminant: U16LE(255)
-        ]);
+        ];
+        
+        let size = person.measure().expect("Measuring failed");
+        assert_eq!(size, expected_encoded.len());
+        
+        let encoded = person.encode_to_vec().expect("Encoding failed");
+        assert_eq!(encoded, expected_encoded);
         let decoded = Person::decode(&encoded, &mut 0).expect("Decoding failed");
         assert_eq!(person, decoded);
     }

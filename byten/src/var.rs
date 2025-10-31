@@ -1,4 +1,4 @@
-use std::{iter, vec::Vec as StdVec, option::Option as StdOption};
+use std::{iter, vec::Vec as StdVec, string::String as StdString, option::Option as StdOption};
 
 use crate::Encode as _;
 use crate::Decode as _;
@@ -64,11 +64,14 @@ where
 {
     type Decoded = StdVec<Item::Decoded>;
 
-    fn measure(&self, decoded: &Self::Decoded) -> usize {
+    fn measure(&self, decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
         let size = decoded.len();
-        let size_measure = self.length.measure(&size);
-        let items_measure: usize = decoded.iter().map(|item| self.item.measure(item)).sum();
-        size_measure + items_measure
+        let size_measure = self.length.measure(&size)?;
+        let mut items_measure = 0;
+        for item in decoded.iter() {
+            items_measure += self.item.measure(item)?;
+        }
+        Ok(size_measure + items_measure)
     }
 }
 
@@ -110,8 +113,73 @@ impl crate::Encoder for Remaining {
 impl crate::Measurer for Remaining {
     type Decoded = StdVec<u8>;
 
-    fn measure(&self, decoded: &Self::Decoded) -> usize {
-        decoded.len()
+    fn measure(&self, decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
+        Ok(decoded.len())
+    }
+}
+
+pub struct String<Length> {
+    pub length: Length,
+}
+
+impl<Length> Default for String<Length>
+where
+    Length: Default,
+{
+    fn default() -> Self {
+        String {
+            length: Length::default(),
+        }
+    }
+}
+
+impl<Length> crate::Decoder for String<Length>
+where
+    Length: crate::Decoder<Decoded = usize>,
+{
+    type Decoded = StdString;
+
+    fn decode(&self, encoded: &[u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
+        let size = self.length.decode(encoded, offset)?;
+        if *offset + size > encoded.len() {
+            return Err(crate::DecodeError::InvalidData);
+        }
+        let string_bytes = &encoded[*offset..*offset + size];
+        let string = StdString::from_utf8(string_bytes.to_vec()).map_err(|_| crate::DecodeError::InvalidData)?;
+        *offset += size;
+        Ok(string)
+    }
+}
+
+impl<Length> crate::Encoder for String<Length>
+where
+    Length: crate::Encoder<Decoded = usize>,
+{
+    type Decoded = StdString;
+
+    fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
+        let size = decoded.len();
+        self.length.encode(&size, encoded, offset)?;
+        let end = *offset + size;
+        if end > encoded.len() {
+            return Err(crate::EncodeError::BufferTooSmall);
+        }
+        encoded[*offset..end].copy_from_slice(decoded.as_bytes());
+        *offset = end;
+        Ok(())
+    }
+}
+
+impl<Length> crate::Measurer for String<Length>
+where
+    Length: crate::Measurer<Decoded = usize>,
+{
+    type Decoded = StdString;
+
+    fn measure(&self, decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
+        let size = decoded.len();
+        let size_measure = self.length.measure(&size)?;
+        Ok(size_measure + size)
     }
 }
 
@@ -226,11 +294,11 @@ impl crate::Decoder for U64BE {
 
 impl crate::Measurer for U64BE {
     type Decoded = u64;
-    fn measure(&self, &decoded: &u64) -> usize {
+    fn measure(&self, &decoded: &u64) -> Result<usize, crate::EncodeError> {
         let septets_be = Self::into_septets_be(decoded);
         let skip = septets_be.iter().take_while(|&&b| b == 0).count();
         let take = septets_be.len() - skip;
-        take.max(1)
+        Ok(take.max(1))
     }
 }
 
@@ -314,7 +382,7 @@ macro_rules! define_u_be {
 
         impl crate::Measurer for $name {
             type Decoded = $ty;
-            fn measure(&self, decoded: &Self::Decoded) -> usize {
+            fn measure(&self, decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
                 let u64_value = *decoded as u64;
                 U64BE.measure(&u64_value)
             }
@@ -384,14 +452,14 @@ where
 {
     type Decoded = StdOption<Item::Decoded>;
 
-    fn measure(&self, decoded: &Self::Decoded) -> usize {
-        match decoded {
-            StdOption::None => true.measure(),
+    fn measure(&self, decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
+        Ok(match decoded {
+            StdOption::None => true.measure()?,
             StdOption::Some(item) => {
-                false.measure()
-                + self.item.measure(item)
+                false.measure()?
+                + self.item.measure(item)?
             }
-        }
+        })
     }
 }
 
