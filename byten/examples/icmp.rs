@@ -1,6 +1,5 @@
-use byten::{Decode, DecodeOwned, var};
-use byten::{Encode, Measure, prim::U16BE};
-use byten::prelude::EncodeToVec;
+use byten::{Encode, Measure, Decode, DecodeOwned, prim::U16BE, util, var};
+use byten::prelude::EncodeToVec as _;
 
 #[derive(Debug, Encode, Measure, DecodeOwned)]
 pub struct IcmpHeader {
@@ -14,7 +13,7 @@ pub struct IcmpHeader {
 #[derive(Debug, Encode, Measure, DecodeOwned)]
 pub struct IcmpPacket {
     pub header: IcmpHeader,
-    #[byten(var::Remaining)]
+    #[byten(util::Owned::<var::Remaining, Vec<u8>>::default())]
     pub data: Vec<u8>,
 }
 
@@ -28,7 +27,7 @@ fn main() {
 
     let packet = IcmpPacket {
         header,
-        data: vec![1, 2, 3, 4, 5],
+        data: b"Hello, ICMP!".to_vec(),
     };
 
     let encoded = packet.encode_to_vec().unwrap();

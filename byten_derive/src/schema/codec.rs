@@ -18,7 +18,7 @@ impl BinarySchema for CodecSchema {
         let expr = &self.expr;
         let encoded = &ctx.encoded;
         let offset = &ctx.offset;
-        quote! { ::byten::BorrowedDecoder::borrowed_decode(&#expr, #encoded, #offset)? }
+        quote! { ::byten::Decoder::decode(&#expr, #encoded, #offset)? }
     }
 
     fn encode(&self, ctx: &EncodeContext) -> proc_macro2::TokenStream {

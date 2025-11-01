@@ -14,7 +14,7 @@ pub struct Directory {
 #[derive(Debug, Encode, Measure, DecodeOwned)]
 pub struct File {
     pub name: CString,
-    #[byten(var::Buffer::<U16BEAsUSize>::default())]
+    #[byten(var::Vec::<U16BEAsUSize, SelfCodec<_>>::default())]
     pub content: Vec<u8>,
 }
 

@@ -12,9 +12,9 @@ macro_rules! impl_prim {
             fn default() -> Self { Self::codec() }
         }
 
-        impl<'encoded> crate::BorrowedDecoder<'encoded, '_> for $codec {
+        impl<'encoded> crate::Decoder<'encoded, '_> for $codec {
             type Decoded = $ty;
-            fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
+            fn decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
                 const SIZE: usize = $ty::BITS as usize / 8;
                 if *offset + SIZE > encoded.len() {
                     return Err(crate::DecodeError::EOF);

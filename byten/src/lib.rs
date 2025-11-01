@@ -4,7 +4,7 @@ pub mod prim;
 pub mod util;
 pub mod var;
 
-use std::{convert::Infallible, ffi::CString, num::TryFromIntError};
+use std::{convert::Infallible, ffi::{CStr, CString}, num::TryFromIntError, ops::Deref};
 
 #[cfg(feature = "derive")]
 pub use byten_derive::{Decode, DecodeOwned, Encode, Measure, MeasureFixed};
@@ -79,22 +79,65 @@ impl From<TryFromIntError> for EncodeError {
 // codec traits
 
 pub trait Encoder {
-    type Decoded;
+    type Decoded: ?Sized;
     fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError>;
 }
 
-pub trait BorrowedDecoder<'encoded, 'decoded> {
+impl<T, Ref> Encoder for Ref
+where
+    T: Encoder,
+    Ref: Deref<Target = T>,
+{
+    type Decoded = T::Decoded;
+    fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError> {
+        self.deref().encode(decoded, encoded, offset)
+    }
+}
+
+pub trait Decoder<'encoded, 'decoded> {
     type Decoded: 'decoded;
-    fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, DecodeError>;
+    fn decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, DecodeError>;
+}
+
+impl<'encoded, 'decoded, T, Ref> Decoder<'encoded, 'decoded> for Ref
+where
+    T: Decoder<'encoded, 'decoded>,
+    Ref: Deref<Target = T>,
+{
+    type Decoded = T::Decoded;
+    fn decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, DecodeError> {
+        self.deref().decode(encoded, offset)
+    }
 }
 
 pub trait Measurer {
-    type Decoded;
+    type Decoded: ?Sized;
     fn measure(&self, decoded: &Self::Decoded) -> Result<usize, EncodeError>;
+}
+
+impl<T, Ref> Measurer for Ref
+where
+    T: Measurer,
+    Ref: Deref<Target = T>,
+{
+    type Decoded = T::Decoded;
+    fn measure(&self, decoded: &Self::Decoded) -> Result<usize, EncodeError> {
+        self.deref().measure(decoded)
+    }
 }
 
 pub trait FixedMeasurer: Measurer {
     fn measure_fixed(&self) -> usize;
+}
+
+impl<T, Ref> FixedMeasurer for Ref
+where
+    T: FixedMeasurer,
+    Ref: Deref<Target = T>,
+{
+    fn measure_fixed(&self) -> usize {
+        self.deref().measure_fixed()
+    }
 }
 
 // self-codecs
@@ -139,13 +182,13 @@ impl<T> Default for SelfCodec<T> {
     fn default() -> Self { Self::codec() }
 }
 
-impl<'encoded, 'decoded, T> BorrowedDecoder<'encoded, 'decoded> for SelfCodec<T>
+impl<'encoded, 'decoded, T> Decoder<'encoded, 'decoded> for SelfCodec<T>
 where
     T: Decode<'encoded>,
     T: 'decoded,
 {
     type Decoded = T;
-    fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, DecodeError> {
+    fn decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, DecodeError> {
         T::decode(encoded, offset)
     }
 }
@@ -293,21 +336,41 @@ macro_rules! impl_smart_ptr {
 // Note: Rc and Arc are not implemented as they brings special ownership semantics that may not be desired in all contexts.
 impl_smart_ptr!(Box);
 
-// Conventional types
+// conventional implementations
+impl<'encoded> Decode<'encoded> for &'encoded CStr {
+    fn decode(encoded: &'encoded [u8], offset: &mut usize) -> Result<Self, DecodeError> {
+        crate::var::str::CStr::codec().decode(encoded, offset)
+    }
+}
+
+impl Encode for &'_ CStr {
+    fn encode(&self, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError> {
+        crate::var::str::CStr::codec().encode(self, encoded, offset)
+    }
+}
+
+impl Measure for &'_ CStr {
+    fn measure(&self) -> Result<usize, EncodeError> {
+        crate::var::str::CStr::codec().measure(self)
+    }
+}
+
+impl DecodeOwned for CString {}
+
 impl Decode<'_> for CString {
     fn decode(encoded: &[u8], offset: &mut usize) -> Result<Self, DecodeError> {
-        var::str::CString.borrowed_decode(encoded, offset)
+        crate::var::str::CString::codec().decode(encoded, offset)
     }
 }
 
 impl Encode for CString {
     fn encode(&self, encoded: &mut [u8], offset: &mut usize) -> Result<(), EncodeError> {
-        var::str::CString.encode(self, encoded, offset)
+        crate::var::str::CString::codec().encode(self, encoded, offset)
     }
 }
 
 impl Measure for CString {
     fn measure(&self) -> Result<usize, EncodeError> {
-        var::str::CString.measure(self)
+        crate::var::str::CString::codec().measure(self)
     }
 }

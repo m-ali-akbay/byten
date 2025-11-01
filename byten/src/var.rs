@@ -27,18 +27,18 @@ where
     }
 }
 
-impl<'encoded, 'decoded, Length, Item> crate::BorrowedDecoder<'encoded, 'decoded> for Vec<Length, Item>
+impl<'encoded, 'decoded, Length, Item> crate::Decoder<'encoded, 'decoded> for Vec<Length, Item>
 where
-    Length: crate::BorrowedDecoder<'encoded, 'decoded, Decoded = usize>,
-    Item: crate::BorrowedDecoder<'encoded, 'decoded>,
+    Length: crate::Decoder<'encoded, 'decoded, Decoded = usize>,
+    Item: crate::Decoder<'encoded, 'decoded>,
 {
     type Decoded = StdVec<Item::Decoded>;
 
-    fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
-        let size = self.length.borrowed_decode(encoded, offset)?;
+    fn decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
+        let size = self.length.decode(encoded, offset)?;
         let mut vec = StdVec::with_capacity(size);
         for _ in 0..size {
-            let item = self.item.borrowed_decode(encoded, offset)?;
+            let item = self.item.decode(encoded, offset)?;
             vec.push(item);
         }
         Ok(vec)
@@ -49,6 +49,7 @@ impl<Length, Item> crate::Encoder for Vec<Length, Item>
 where
     Length: crate::Encoder<Decoded = usize>,
     Item: crate::Encoder,
+    Item::Decoded: Sized,
 {
     type Decoded = StdVec<Item::Decoded>;
 
@@ -66,6 +67,7 @@ impl<Length, Item> crate::Measurer for Vec<Length, Item>
 where
     Length: crate::Measurer<Decoded = usize>,
     Item: crate::Measurer,
+    Item::Decoded: Sized,
 {
     type Decoded = StdVec<Item::Decoded>;
 
@@ -99,18 +101,19 @@ where
     }
 }
 
-impl<'encoded, 'decoded, Length> crate::BorrowedDecoder<'encoded, 'decoded> for Buffer<Length>
+impl<'encoded, 'decoded, Length> crate::Decoder<'encoded, 'decoded> for Buffer<Length>
 where
-    Length: for<'length> crate::BorrowedDecoder<'encoded, 'length, Decoded = usize>,
+    Length: for<'length> crate::Decoder<'encoded, 'length, Decoded = usize>,
+    'encoded: 'decoded,
 {
-    type Decoded = StdVec<u8>;
+    type Decoded = &'decoded [u8];
 
-    fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
-        let size = self.length.borrowed_decode(encoded, offset)?;
+    fn decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
+        let size = self.length.decode(encoded, offset)?;
         if *offset + size > encoded.len() {
             return Err(crate::DecodeError::InvalidData);
         }
-        let buffer = encoded[*offset..*offset + size].to_vec();
+        let buffer = &encoded[*offset..*offset + size];
         *offset += size;
         Ok(buffer)
     }
@@ -120,7 +123,7 @@ impl<Length> crate::Encoder for Buffer<Length>
 where
     Length: crate::Encoder<Decoded = usize>,
 {
-    type Decoded = StdVec<u8>;
+    type Decoded = [u8];
 
     fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
         let size = decoded.len();
@@ -139,7 +142,7 @@ impl<Length> crate::Measurer for Buffer<Length>
 where
     Length: crate::Measurer<Decoded = usize>,
 {
-    type Decoded = StdVec<u8>;
+    type Decoded = [u8];
 
     fn measure(&self, decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
         let size = decoded.len();
@@ -160,21 +163,24 @@ impl Default for Remaining {
     fn default() -> Self { Self::codec() }
 }
 
-impl<'encoded> crate::BorrowedDecoder<'encoded, '_> for Remaining {
-    type Decoded = StdVec<u8>;
+impl<'encoded, 'decoded> crate::Decoder<'encoded, 'decoded> for Remaining
+where
+    'encoded: 'decoded,
+{
+    type Decoded = &'decoded [u8];
 
-    fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
+    fn decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
         if *offset > encoded.len() {
             return Err(crate::DecodeError::InvalidData);
         }
         let remaining = &encoded[*offset..];
         *offset = encoded.len();
-        Ok(remaining.to_vec())
+        Ok(remaining)
     }
 }
 
 impl crate::Encoder for Remaining {
-    type Decoded = StdVec<u8>;
+    type Decoded = [u8];
 
     fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
         let end = *offset + decoded.len();
@@ -188,7 +194,7 @@ impl crate::Encoder for Remaining {
 }
 
 impl crate::Measurer for Remaining {
-    type Decoded = StdVec<u8>;
+    type Decoded = [u8];
 
     fn measure(&self, decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
         Ok(decoded.len())
@@ -282,10 +288,10 @@ impl crate::Encoder for U64BE {
     }
 }
 
-impl<'encoded> crate::BorrowedDecoder<'encoded, '_> for U64BE {
+impl<'encoded> crate::Decoder<'encoded, '_> for U64BE {
     type Decoded = u64;
 
-    fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<u64, crate::DecodeError> {
+    fn decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<u64, crate::DecodeError> {
         let mut septets_be = heapless::Vec::<u8, 10>::new();
 
         loop {
@@ -321,7 +327,7 @@ impl crate::Measurer for U64BE {
 #[cfg(test)]
 mod test {
     use crate::prelude::EncoderToVec;
-    use crate::BorrowedDecoder as _;
+    use crate::Decoder as _;
 
     use super::*;
 
@@ -363,7 +369,7 @@ mod test {
             let encoded = U64BE.encode_to_vec(num).expect("Encoding failed");
             assert_eq!(&encoded, encoded_fixture, "Encoding failed for {}", num);
 
-            let decoded = U64BE.borrowed_decode(&encoded, &mut 0).expect("Decoding failed");
+            let decoded = U64BE.decode(&encoded, &mut 0).expect("Decoding failed");
             assert_eq!(&decoded, num, "Decoding failed for {:?}", encoded);
         }
     }
@@ -383,10 +389,10 @@ macro_rules! define_u_be {
             fn default() -> Self { Self::codec() }
         }
 
-        impl<'encoded> crate::BorrowedDecoder<'encoded, '_> for $name {
+        impl<'encoded> crate::Decoder<'encoded, '_> for $name {
             type Decoded = $ty;
-            fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<$ty, crate::DecodeError> {
-                let u64_value = U64BE.borrowed_decode(encoded, offset)?;
+            fn decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<$ty, crate::DecodeError> {
+                let u64_value = U64BE.decode(encoded, offset)?;
                 let val: $ty = u64_value.try_into().map_err(|_| crate::DecodeError::ConversionFailure)?;
                 Ok(val)
             }
@@ -431,18 +437,18 @@ where
     fn default() -> Self { Self::codec(Item::default()) }
 }
 
-impl<'encoded, 'decoded, Item> crate::BorrowedDecoder<'encoded, 'decoded> for Option<Item>
+impl<'encoded, 'decoded, Item> crate::Decoder<'encoded, 'decoded> for Option<Item>
 where
-    Item: crate::BorrowedDecoder<'encoded, 'decoded>,
+    Item: crate::Decoder<'encoded, 'decoded>,
 {
     type Decoded = StdOption<Item::Decoded>;
 
-    fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
+    fn decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
         let flag = bool::decode(encoded, offset)?;
         if flag {
             Ok(StdOption::None)
         } else {
-            let item = self.item.borrowed_decode(encoded, offset)?;
+            let item = self.item.decode(encoded, offset)?;
             Ok(StdOption::Some(item))
         }
     }
@@ -451,6 +457,7 @@ where
 impl<Item> crate::Encoder for Option<Item>
 where
     Item: crate::Encoder,
+    Item::Decoded: Sized,
 {
     type Decoded = StdOption<Item::Decoded>;
 
@@ -471,6 +478,7 @@ where
 impl<Item> crate::Measurer for Option<Item>
 where
     Item: crate::Measurer,
+    Item::Decoded: Sized,
 {
     type Decoded = StdOption<Item::Decoded>;
 
@@ -486,21 +494,19 @@ where
 }
 
 
-pub struct SlicedBuffer<'decoded, Length> {
-    pub _marker: std::marker::PhantomData<&'decoded ()>,
+pub struct SlicedBuffer<Length> {
     pub length: Length,
 }
 
-impl<'decoded, Length> SlicedBuffer<'decoded, Length> {
+impl<Length> SlicedBuffer<Length> {
     pub const fn codec(length: Length) -> Self {
         Self {
-            _marker: std::marker::PhantomData,
             length,
         }
     }
 }
 
-impl<'decoded, Length> Default for SlicedBuffer<'decoded, Length>
+impl<Length> Default for SlicedBuffer<Length>
 where
     Length: Default,
 {
@@ -509,15 +515,15 @@ where
     }
 }
 
-impl<'encoded, 'decoded, Length> crate::BorrowedDecoder<'encoded, 'decoded> for SlicedBuffer<'decoded, Length>
+impl<'encoded, 'decoded, Length> crate::Decoder<'encoded, 'decoded> for SlicedBuffer<Length>
 where
-    Length: for<'length> crate::BorrowedDecoder<'encoded, 'length, Decoded = usize>,
+    Length: for<'length> crate::Decoder<'encoded, 'length, Decoded = usize>,
     'encoded: 'decoded,
 {
     type Decoded = &'decoded [u8];
 
-    fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
-        let size = self.length.borrowed_decode(encoded, offset)?;
+    fn decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
+        let size = self.length.decode(encoded, offset)?;
         if *offset + size > encoded.len() {
             return Err(crate::DecodeError::InvalidData);
         }
@@ -527,11 +533,11 @@ where
     }
 }
 
-impl<'decoded, Length> crate::Encoder for SlicedBuffer<'decoded, Length>
+impl<Length> crate::Encoder for SlicedBuffer<Length>
 where
     Length: crate::Encoder<Decoded = usize>,
 {
-    type Decoded = &'decoded [u8];
+    type Decoded = [u8];
 
     fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
         let size = decoded.len();
@@ -546,11 +552,11 @@ where
     }
 }
 
-impl<'decoded, Length> crate::Measurer for SlicedBuffer<'decoded, Length>
+impl<Length> crate::Measurer for SlicedBuffer<Length>
 where
     Length: crate::Measurer<Decoded = usize>,
 {
-    type Decoded = &'decoded [u8];
+    type Decoded = [u8];
 
     fn measure(&self, decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
         let size = decoded.len();

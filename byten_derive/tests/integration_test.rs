@@ -1,5 +1,5 @@
 use byten::{
-    Decode, DecodeOwned, Encode, MeasureFixed, Measure, SelfCodec, prim::{U16BE, U16LE, U32BE, U64BE}, util::Convert, var
+    Decode, DecodeOwned, Encode, Measure, MeasureFixed, SelfCodec, prim::{U16BE, U16LE, U32BE, U64BE}, util::Convert, var
 };
 
 type U8AsUSize = Convert<SelfCodec<u8>,usize>;
@@ -9,7 +9,7 @@ struct Person {
     #[byten(U32BE)]
     id: u32,
     #[byten(var::str::String::<U8AsUSize>::default())]
-    pub name: String,
+    name: String,
     birthday: Date,
     #[byten(var::Vec::<var::USizeBE, SelfCodec::<Color>>::default())]
     favorite_colors: Vec<Color>,

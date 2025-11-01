@@ -1,4 +1,4 @@
-use crate::{DecodeError, BorrowedDecoder, EncodeError, Encoder, FixedMeasurer, Measurer};
+use crate::{DecodeError, Decoder, EncodeError, Encoder, FixedMeasurer, Measurer};
 
 pub struct Array<Item, const N: usize>(pub Item);
 
@@ -15,16 +15,16 @@ where
     fn default() -> Self { Self::codec(Item::default()) }
 }
 
-impl<'encoded, 'decoded, Item, const N: usize> BorrowedDecoder<'encoded, 'decoded> for Array<Item, N>
+impl<'encoded, 'decoded, Item, const N: usize> Decoder<'encoded, 'decoded> for Array<Item, N>
 where
-    Item: BorrowedDecoder<'encoded, 'decoded>,
+    Item: Decoder<'encoded, 'decoded>,
 {
     type Decoded = [Item::Decoded; N];
 
-    fn borrowed_decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, DecodeError> {
+    fn decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, DecodeError> {
         let mut array: heapless::Vec<Item::Decoded, N> = heapless::Vec::new();
         for _ in 0..N {
-            let item = self.0.borrowed_decode(encoded, offset)?;
+            let item = self.0.decode(encoded, offset)?;
             array.push(item).unwrap_or_else(|_| panic!("unexpected heapless vec overflow"));
         }
         let array = array.into_array().unwrap_or_else(|_| panic!("unexpected heapless vec underflow"));
@@ -35,6 +35,7 @@ where
 impl<Item, const N: usize> Encoder for Array<Item, N>
 where
     Item: Encoder,
+    Item::Decoded: Sized,
 {
     type Decoded = [Item::Decoded; N];
 
@@ -49,6 +50,7 @@ where
 impl<Item, const N: usize> FixedMeasurer for Array<Item, N>
 where
     Item: FixedMeasurer,
+    Item::Decoded: Sized,
 {
     fn measure_fixed(&self) -> usize {
         N * self.0.measure_fixed()
@@ -58,6 +60,7 @@ where
 impl<Item, const N: usize> Measurer for Array<Item, N>
 where
     Item: Measurer,
+    Item::Decoded: Sized,
 {
     type Decoded = [Item::Decoded; N];
 
