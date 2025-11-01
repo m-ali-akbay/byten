@@ -82,75 +82,6 @@ where
     }
 }
 
-pub struct Buffer<Length> {
-    pub length: Length,
-}
-
-impl<Length> Buffer<Length> {
-    pub const fn codec(length: Length) -> Self {
-        Self { length }
-    }
-}
-
-impl<Length> Default for Buffer<Length>
-where
-    Length: Default,
-{
-    fn default() -> Self {
-        Self::codec(Length::default())
-    }
-}
-
-impl<'encoded, 'decoded, Length> crate::Decoder<'encoded, 'decoded> for Buffer<Length>
-where
-    Length: for<'length> crate::Decoder<'encoded, 'length, Decoded = usize>,
-    'encoded: 'decoded,
-{
-    type Decoded = &'decoded [u8];
-
-    fn decode(&self, encoded: &'encoded [u8], offset: &mut usize) -> Result<Self::Decoded, crate::DecodeError> {
-        let size = self.length.decode(encoded, offset)?;
-        if *offset + size > encoded.len() {
-            return Err(crate::DecodeError::InvalidData);
-        }
-        let buffer = &encoded[*offset..*offset + size];
-        *offset += size;
-        Ok(buffer)
-    }
-}
-
-impl<Length> crate::Encoder for Buffer<Length>
-where
-    Length: crate::Encoder<Decoded = usize>,
-{
-    type Decoded = [u8];
-
-    fn encode(&self, decoded: &Self::Decoded, encoded: &mut [u8], offset: &mut usize) -> Result<(), crate::EncodeError> {
-        let size = decoded.len();
-        self.length.encode(&size, encoded, offset)?;
-        let end = *offset + size;
-        if end > encoded.len() {
-            return Err(crate::EncodeError::BufferTooSmall);
-        }
-        encoded[*offset..end].copy_from_slice(decoded);
-        *offset = end;
-        Ok(())
-    }
-}
-
-impl<Length> crate::Measurer for Buffer<Length>
-where
-    Length: crate::Measurer<Decoded = usize>,
-{
-    type Decoded = [u8];
-
-    fn measure(&self, decoded: &Self::Decoded) -> Result<usize, crate::EncodeError> {
-        let size = decoded.len();
-        let size_measure = self.length.measure(&size)?;
-        Ok(size_measure + size)
-    }
-}
-
 pub struct Remaining;
 
 impl Remaining {
@@ -494,11 +425,11 @@ where
 }
 
 
-pub struct SlicedBuffer<Length> {
+pub struct Slice<Length> {
     pub length: Length,
 }
 
-impl<Length> SlicedBuffer<Length> {
+impl<Length> Slice<Length> {
     pub const fn codec(length: Length) -> Self {
         Self {
             length,
@@ -506,7 +437,7 @@ impl<Length> SlicedBuffer<Length> {
     }
 }
 
-impl<Length> Default for SlicedBuffer<Length>
+impl<Length> Default for Slice<Length>
 where
     Length: Default,
 {
@@ -515,7 +446,7 @@ where
     }
 }
 
-impl<'encoded, 'decoded, Length> crate::Decoder<'encoded, 'decoded> for SlicedBuffer<Length>
+impl<'encoded, 'decoded, Length> crate::Decoder<'encoded, 'decoded> for Slice<Length>
 where
     Length: for<'length> crate::Decoder<'encoded, 'length, Decoded = usize>,
     'encoded: 'decoded,
@@ -533,7 +464,7 @@ where
     }
 }
 
-impl<Length> crate::Encoder for SlicedBuffer<Length>
+impl<Length> crate::Encoder for Slice<Length>
 where
     Length: crate::Encoder<Decoded = usize>,
 {
@@ -552,7 +483,7 @@ where
     }
 }
 
-impl<Length> crate::Measurer for SlicedBuffer<Length>
+impl<Length> crate::Measurer for Slice<Length>
 where
     Length: crate::Measurer<Decoded = usize>,
 {
